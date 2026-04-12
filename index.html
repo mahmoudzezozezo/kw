@@ -10,6 +10,7 @@
   </head>
   <body>
     <div class="container">
+
       <!-- Header -->
       <header class="header">
         <div class="header-content">
@@ -27,10 +28,15 @@
 
       <!-- Dashboard Cards -->
       <div class="dashboard-grid">
+
         <!-- Current Month Summary -->
         <div class="card summary-card">
           <div class="card-header">
-            <h3><i class="fas fa-chart-line"></i> <span class="ar-text">ملخص الشهر الحالي</span><span class="en-text">Current Month Summary</span></h3>
+            <h3>
+              <i class="fas fa-chart-line"></i>
+              <span class="ar-text">ملخص الشهر الحالي</span>
+              <span class="en-text">Current Month Summary</span>
+            </h3>
           </div>
           <div class="card-content">
             <div class="metric-grid">
@@ -63,13 +69,54 @@
                 </div>
               </div>
             </div>
+
+            <!-- Bill Breakdown -->
+            <div class="bill-breakdown">
+              <div class="breakdown-title">
+                <i class="fas fa-receipt"></i>
+                <span class="ar-text">تفصيل الفاتورة</span>
+                <span class="en-text">Bill Breakdown</span>
+              </div>
+              <div class="breakdown-rows">
+                <div class="breakdown-row">
+                  <span class="breakdown-label">
+                    <span class="ar-text">تكلفة الاستهلاك</span>
+                    <span class="en-text">Consumption cost</span>
+                  </span>
+                  <span class="breakdown-value"><span id="cost-consumption">--</span> <span class="ar-text">جنيه</span><span class="en-text">EGP</span></span>
+                </div>
+                <div class="breakdown-row">
+                  <span class="breakdown-label">
+                    <span class="ar-text">رسوم الخدمة</span>
+                    <span class="en-text">Service fee</span>
+                  </span>
+                  <span class="breakdown-value"><span id="cost-service">--</span> <span class="ar-text">جنيه</span><span class="en-text">EGP</span></span>
+                </div>
+                <div class="breakdown-row breakdown-total">
+                  <span class="breakdown-label">
+                    <span class="ar-text">إجمالي الفاتورة</span>
+                    <span class="en-text">Total bill</span>
+                  </span>
+                  <span class="breakdown-value"><span id="cost-total">--</span> <span class="ar-text">جنيه</span><span class="en-text">EGP</span></span>
+                </div>
+              </div>
+              <p class="breakdown-note">
+                <i class="fas fa-info-circle"></i>
+                <span class="ar-text">وفقاً لتعريفة ERA الرسمية اعتباراً من سبتمبر 2024</span>
+                <span class="en-text">Based on official ERA tariff effective Sep 2024</span>
+              </p>
+            </div>
           </div>
         </div>
 
         <!-- Quick Actions -->
         <div class="card actions-card">
           <div class="card-header">
-            <h3><i class="fas fa-tools"></i> <span class="ar-text">إجراءات سريعة</span><span class="en-text">Quick Actions</span></h3>
+            <h3>
+              <i class="fas fa-tools"></i>
+              <span class="ar-text">إجراءات سريعة</span>
+              <span class="en-text">Quick Actions</span>
+            </h3>
           </div>
           <div class="card-content">
             <div class="actions-grid">
@@ -97,7 +144,11 @@
       <div class="projections-section">
         <div class="card projections-card">
           <div class="card-header">
-            <h3><i class="fas fa-crystal-ball"></i> <span class="ar-text">توقعات الشهر القادم</span><span class="en-text">Next Month Projections</span></h3>
+            <h3>
+              <i class="fas fa-crystal-ball"></i>
+              <span class="ar-text">توقعات الشهر القادم</span>
+              <span class="en-text">Next Month Projections</span>
+            </h3>
           </div>
           <div class="card-content">
             <div id="projections-content" class="projections-display">
@@ -113,6 +164,24 @@
                 <div class="projection-info">
                   <h4><span class="ar-text">التكلفة المتوقعة</span><span class="en-text">Projected Cost</span></h4>
                   <p class="projection-value" id="projected-cost">--</p>
+                  <!-- Projected breakdown -->
+                  <div class="proj-breakdown">
+                    <span class="proj-breakdown-row">
+                      <span class="ar-text">استهلاك:</span><span class="en-text">Consumption:</span>
+                      <strong id="proj-consumption">--</strong>
+                      <span class="ar-text">ج</span><span class="en-text">EGP</span>
+                    </span>
+                    <span class="proj-breakdown-row">
+                      <span class="ar-text">خدمة:</span><span class="en-text">Service:</span>
+                      <strong id="proj-service">--</strong>
+                      <span class="ar-text">ج</span><span class="en-text">EGP</span>
+                    </span>
+                    <span class="proj-breakdown-row proj-breakdown-total">
+                      <span class="ar-text">الإجمالي:</span><span class="en-text">Total:</span>
+                      <strong id="proj-total">--</strong>
+                      <span class="ar-text">ج</span><span class="en-text">EGP</span>
+                    </span>
+                  </div>
                 </div>
               </div>
               <div class="projection-item">
@@ -141,7 +210,11 @@
       <div class="charts-section">
         <div class="card chart-card">
           <div class="card-header">
-            <h3><i class="fas fa-chart-area"></i> <span class="ar-text">مقارنة التكلفة المقدرة مع الفعلية</span><span class="en-text">Estimated vs Actual Cost</span></h3>
+            <h3>
+              <i class="fas fa-chart-area"></i>
+              <span class="ar-text">مقارنة التكلفة المقدرة مع الفعلية</span>
+              <span class="en-text">Estimated vs Actual Cost</span>
+            </h3>
             <div class="chart-controls">
               <select id="chart-period" class="chart-select">
                 <option value="6">6 months</option>
@@ -160,7 +233,11 @@
       <div class="data-section">
         <div class="card data-card">
           <div class="card-header">
-            <h3><i class="fas fa-table"></i> <span class="ar-text">سجل الاستهلاك اليومي</span><span class="en-text">Daily Usage Log</span></h3>
+            <h3>
+              <i class="fas fa-table"></i>
+              <span class="ar-text">سجل الاستهلاك اليومي</span>
+              <span class="en-text">Daily Usage Log</span>
+            </h3>
             <div class="table-controls">
               <input type="search" id="search-input" placeholder="Search..." class="search-input">
               <button class="filter-btn" onclick="toggleFilters()">
@@ -169,11 +246,9 @@
             </div>
           </div>
           <div class="card-content">
-            <!-- Arabic content -->
             <div id="content-ar" class="lang-content">
               <div id="terminal-ar" class="data-display"></div>
             </div>
-            <!-- English content -->
             <div id="content-en" class="lang-content">
               <div id="terminal-en" class="data-display"></div>
             </div>
@@ -192,8 +267,8 @@
 
       <!-- Footer -->
       <footer class="footer">
-        <p class="ar-text">مراقب استهلاك الكهرباء - تتبع ذكي لاستهلاكك</p>
-        <p class="en-text">Electricity Usage Monitor - Smart tracking for your consumption</p>
+        <p class="ar-text">مراقب استهلاك الكهرباء — التعريفة الرسمية لـ ERA اعتباراً من سبتمبر 2024</p>
+        <p class="en-text">Electricity Usage Monitor — Official ERA tariff effective Sep 2024</p>
       </footer>
     </div>
 
