@@ -2,7 +2,16 @@ const csvUrl =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vSSg37J5X0DRuSl3X61vyxB2j3szzkxqR_ut6hLeL0KudWW7sZljceS4FKtfR9cuGGHryL7tzRYVda3/pub?output=csv";
 
 const billCsvUrl =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTGd43YouVicDWfpYuY__AVeIJLp2xrRKXv3jBmcKibwPv5UQsyRBMAWBe5mgkV2IbwJ9EIVE69RrS/pubhtml";
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTGd43YouVicDWfpYuY__AVeIJLp2xrRKXv3jBmcKibwPv5UQsyRBMAWBe5mgkV2IbwJ9EIVE69RrS/pub?output=csv";
+
+// Normalize a parsed row's keys to lowercase trimmed strings
+function normalizeRow(row) {
+  const normalized = {};
+  for (const key of Object.keys(row)) {
+    normalized[key.trim().toLowerCase()] = row[key];
+  }
+  return normalized;
+}
 
 // Detect if this is a curl request (no user agent or contains curl)
 function isCurlRequest() {
@@ -152,6 +161,34 @@ function displayAveragePerDayEn(data) {
   }
 }
 
+// Parse electricity CSV rows, normalizing column names to lowercase
+function parseElecData(csvText) {
+  const parsed = Papa.parse(csvText, { header: true });
+  return parsed.data
+    .map(normalizeRow)
+    .filter((row) => row["date time"]?.trim() && row["reading"]?.trim())
+    .map((row) => ({
+      timestamp: new Date(row["date time"].trim()),
+      reading: parseInt(row["reading"].trim()),
+    }))
+    .filter((row) => !isNaN(row.timestamp.getTime()) && !isNaN(row.reading))
+    .sort((a, b) => a.timestamp - b.timestamp);
+}
+
+// Parse billing CSV rows, normalizing column names to lowercase
+function parseBillData(csvText) {
+  const parsed = Papa.parse(csvText, { header: true });
+  return parsed.data
+    .map(normalizeRow)
+    .filter((row) => row["date"]?.trim() && row["total_bill"]?.trim())
+    .map((row) => ({
+      date: new Date(row["date"].trim()),
+      cost: parseFloat(row["total_bill"].trim()),
+      month: new Date(row["date"].trim()).toISOString().slice(0, 7),
+    }))
+    .filter((row) => !isNaN(row.date.getTime()) && !isNaN(row.cost));
+}
+
 // Load and process CSV data for Arabic
 function loadArabicData() {
   document.getElementById("terminal-ar").innerHTML = 
@@ -159,14 +196,7 @@ function loadArabicData() {
   fetch(csvUrl)
     .then((response) => response.text())
     .then((csvText) => {
-      const parsed = Papa.parse(csvText, { header: true });
-      const data = parsed.data
-        .filter((row) => row["date time"]?.trim() && row["reading"]?.trim())
-        .map((row) => ({
-          timestamp: new Date(row["date time"].trim()),
-          reading: parseInt(row["reading"].trim()),
-        }))
-        .sort((a, b) => a.timestamp - b.timestamp);
+      const data = parseElecData(csvText);
 
       const now = new Date();
       const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -174,6 +204,7 @@ function loadArabicData() {
 
       if (last30DaysData.length < 2) {
         logAr("> لا توجد بيانات كافية للشهر الماضي.");
+        hideLoading();
         return;
       }
 
@@ -193,7 +224,6 @@ function loadArabicData() {
       const cost = calculateCost(totalUsage);
       const category = getCategoryAr(totalUsage);
       
-      // Update summary cards
       updateSummaryCards({
         totalUsage: totalUsage,
         avgPerDay: avgPerDay,
@@ -231,18 +261,10 @@ function loadEnglishData() {
     return;
   }
   terminalEn.innerHTML = "> Loading electricity usage data...";
-  console.log('Fetching CSV data for English...', csvUrl);
   fetch(csvUrl)
     .then((response) => response.text())
     .then((csvText) => {
-      const parsed = Papa.parse(csvText, { header: true });
-      const data = parsed.data
-        .filter((row) => row["date time"]?.trim() && row["reading"]?.trim())
-        .map((row) => ({
-          timestamp: new Date(row["date time"].trim()),
-          reading: parseInt(row["reading"].trim()),
-        }))
-        .sort((a, b) => a.timestamp - b.timestamp);
+      const data = parseElecData(csvText);
 
       const now = new Date();
       const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -250,6 +272,7 @@ function loadEnglishData() {
 
       if (last30DaysData.length < 2) {
         logEn("> Not enough data for last month.");
+        hideLoading();
         return;
       }
 
@@ -269,7 +292,6 @@ function loadEnglishData() {
       const cost = calculateCost(totalUsage);
       const category = getCategoryEn(totalUsage);
       
-      // Update summary cards
       updateSummaryCards({
         totalUsage: totalUsage,
         avgPerDay: avgPerDay,
@@ -300,7 +322,7 @@ function loadEnglishData() {
 
 function displayRollingCostChartEn(data, monthsPeriod = 12) {
   const chartContainer = document.getElementById("shared-chart-container");
-  chartContainer.innerHTML = ""; // Clear existing chart
+  chartContainer.innerHTML = "";
   const canvas = document.createElement("canvas");
   canvas.id = "rolling-cost-chart";
   chartContainer.appendChild(canvas);
@@ -326,42 +348,27 @@ function displayRollingCostChartEn(data, monthsPeriod = 12) {
       rollingCosts.push({
         date: currentDate,
         cost: cost,
-        month: currentDate.toISOString().slice(0, 7), // "YYYY-MM"
+        month: currentDate.toISOString().slice(0, 7),
       });
     }
   }
 
-  // Fetch billing data as CSV
-  fetch(billCsvUrl.replace("/pubhtml", "/pub?output=csv"))
+  fetch(billCsvUrl)
     .then((response) => response.text())
     .then((csvText) => {
-      const parsed = Papa.parse(csvText, { header: true });
-      const billingData = parsed.data
-        .filter((row) => row["date"]?.trim() && row["total_bill"]?.trim())
-        .map((row) => ({
-          date: new Date(row["date"].trim()),
-          cost: parseFloat(row["total_bill"].trim()),
-          month: new Date(row["date"].trim()).toISOString().slice(0, 7),
-        }));
+      const billingData = parseBillData(csvText);
 
-      // Group billing costs by month, pick one cost per month (e.g., last)
       const billingByMonth = {};
       billingData.forEach((entry) => {
-        billingByMonth[entry.month] = entry.cost; // overwrite keeps last cost per month
+        billingByMonth[entry.month] = entry.cost;
       });
 
-      // Group rollingCosts by month, and pick one date per month for billing points
       const months = [...new Set(rollingCosts.map((rc) => rc.month))];
-
-      // Filter to requested period
       const filteredMonths = months.slice(-monthsPeriod);
-      const labels = filteredMonths;
 
-      // Estimated cost: average or last rolling cost per month
       const estimatedCostsByMonth = {};
       months.forEach((month) => {
         const costsInMonth = rollingCosts.filter((rc) => rc.month === month);
-        // pick last cost in that month
         if (costsInMonth.length) {
           estimatedCostsByMonth[month] =
             costsInMonth[costsInMonth.length - 1].cost;
@@ -370,7 +377,6 @@ function displayRollingCostChartEn(data, monthsPeriod = 12) {
         }
       });
 
-      // Prepare data arrays for chart
       const estimatedCosts = filteredMonths.map(
         (m) => estimatedCostsByMonth[m] || null
       );
@@ -379,7 +385,7 @@ function displayRollingCostChartEn(data, monthsPeriod = 12) {
       new Chart(ctx, {
         type: "line",
         data: {
-          labels,
+          labels: filteredMonths,
           datasets: [
             {
               label: "Estimated Cost",
@@ -496,16 +502,11 @@ function updateSummaryCards(summary) {
   if (billingTierEl) billingTierEl.textContent = summary.tier || "--";
   
   currentSummary = summary;
-  console.log('Summary cards updated:', summary);
-  
-  // Automatically update projections
   updateProjectionsDisplay();
 }
 
-// Auto-update projections display
 function updateProjectionsDisplay() {
   if (!currentSummary.avgPerDay) {
-    // No data available yet
     document.getElementById("projected-usage").textContent = "--";
     document.getElementById("projected-cost").textContent = "--";
     document.getElementById("projected-tier").textContent = "--";
@@ -518,7 +519,6 @@ function updateProjectionsDisplay() {
   const projectedCost = calculateCost(projectedUsage);
   const projectedTier = currentLang === "ar" ? getCategoryAr(projectedUsage) : getCategoryEn(projectedUsage);
   
-  // Update projected values with smaller units
   const projectedUsageText = currentLang === "ar" 
     ? `${projectedUsage.toFixed(0)} <span class="unit-text">كيلووات/ساعة</span>`
     : `${projectedUsage.toFixed(0)} <span class="unit-text">kWh</span>`;
@@ -530,30 +530,24 @@ function updateProjectionsDisplay() {
   document.getElementById("projected-cost").innerHTML = projectedCostText;
   document.getElementById("projected-tier").textContent = projectedTier;
   
-  // Update comparison trend
   const savings = currentSummary.cost - projectedCost;
   const trendEl = document.getElementById("projection-trend");
   
   if (Math.abs(savings) < 5) {
-    // Similar cost (within 5 EGP)
     trendEl.className = "trend neutral";
     trendEl.innerHTML = currentLang === "ar" 
       ? '<i class="fas fa-equals"></i><span>مماثل للشهر الحالي</span>'
       : '<i class="fas fa-equals"></i><span>Similar to current month</span>';
   } else if (savings > 0) {
-    // Saving money
     trendEl.className = "trend positive";
-    const savingsText = currentLang === "ar" 
+    trendEl.innerHTML = currentLang === "ar" 
       ? `<i class="fas fa-arrow-down"></i><span>توفير ${savings.toFixed(0)} جنيه</span>`
       : `<i class="fas fa-arrow-down"></i><span>Save ${savings.toFixed(0)} EGP</span>`;
-    trendEl.innerHTML = savingsText;
   } else {
-    // Higher cost
     trendEl.className = "trend negative";
-    const increaseText = currentLang === "ar" 
+    trendEl.innerHTML = currentLang === "ar" 
       ? `<i class="fas fa-arrow-up"></i><span>زيادة ${Math.abs(savings).toFixed(0)} جنيه</span>`
       : `<i class="fas fa-arrow-up"></i><span>Increase ${Math.abs(savings).toFixed(0)} EGP</span>`;
-    trendEl.innerHTML = increaseText;
   }
 }
 
@@ -563,53 +557,25 @@ const contentEn = document.getElementById("content-en");
 const contentAr = document.getElementById("content-ar");
 const body = document.body;
 
-// Debug logging
-console.log('contentAr:', contentAr);
-console.log('contentEn:', contentEn);
-console.log('Initial body class:', body.className);
-console.log('Initial currentLang:', currentLang);
-
 langSwitchBtn.addEventListener("click", () => {
-  console.log('Language switch clicked. Current:', currentLang);
-  
   if (currentLang === "ar") {
-    // Switch to English
     currentLang = "en";
     body.className = "lang-en";
-    
-    console.log('Switched to English. Body class:', body.className);
-    console.log('contentEn element:', contentEn);
-    console.log('contentAr element:', contentAr);
-    
-    // Check computed styles after switch
-    setTimeout(() => {
-      console.log('After switch - contentAr computed display:', window.getComputedStyle(contentAr).display);
-      console.log('After switch - contentEn computed display:', window.getComputedStyle(contentEn).display);
-    }, 100);
-    
     langSwitchBtn.innerHTML = `<i class="fas fa-language"></i><span>التبديل إلى العربية / Switch to Arabic</span>`;
     document.documentElement.lang = "en";
     document.documentElement.dir = "ltr";
     
     if (!contentEn.dataset.loaded) {
-      console.log('Loading English data...');
       showLoading();
       loadEnglishData();
       contentEn.dataset.loaded = "true";
     } else {
-      console.log('English data already loaded');
       updateProjectionsDisplay();
       hideLoading();
     }
   } else {
-    // Switch to Arabic
     currentLang = "ar";
     body.className = "lang-ar";
-    
-    console.log('Switched to Arabic. Body class:', body.className);
-    
-    // CSS will handle display based on body class
-    
     langSwitchBtn.innerHTML = `<i class="fas fa-language"></i><span>Switch to English / التبديل إلى الإنجليزية</span>`;
     document.documentElement.lang = "ar";
     document.documentElement.dir = "rtl";
@@ -661,9 +627,6 @@ function exportData() {
   window.URL.revokeObjectURL(url);
 }
 
-// Removed showProjections function since projections now display automatically
-
-// Modal System
 function showModal(title, content, type = "info") {
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
@@ -688,37 +651,26 @@ function showModal(title, content, type = "info") {
   
   document.body.appendChild(modal);
   
-  // Close on background click
   modal.addEventListener('click', function(e) {
-    if (e.target === modal) {
-      closeModal(modal.querySelector('.modal-close'));
-    }
+    if (e.target === modal) closeModal(modal.querySelector('.modal-close'));
   });
   
-  // Close on Escape key
   document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-      closeModal(modal.querySelector('.modal-close'));
-    }
+    if (e.key === 'Escape') closeModal(modal.querySelector('.modal-close'));
   });
 }
 
 function closeModal(button) {
   const modal = button.closest('.modal-overlay');
   modal.style.opacity = '0';
-  setTimeout(() => {
-    modal.remove();
-  }, 300);
+  setTimeout(() => modal.remove(), 300);
 }
 
-// Search and Filter Functionality
 function toggleFilters() {
-  // Simple implementation - could be expanded
   const searchInput = document.getElementById('search-input');
   searchInput.focus();
 }
 
-// Enhanced Chart Period Control
 document.getElementById('chart-period')?.addEventListener('change', function() {
   const period = parseInt(this.value);
   if (currentData.length > 0) {
@@ -726,75 +678,30 @@ document.getElementById('chart-period')?.addEventListener('change', function() {
   }
 });
 
-// Test function for debugging
-function testLanguageSwitch() {
-  console.log('Test: Current body class:', document.body.className);
-  if (document.body.className === 'lang-ar') {
-    document.body.className = 'lang-en';
-    console.log('Test: Switched to lang-en');
-  } else {
-    document.body.className = 'lang-ar';
-    console.log('Test: Switched to lang-ar');
-  }
-  console.log('Test: New body class:', document.body.className);
-}
-
 // Initialize app
 window.onload = () => {
-  // Set initial language class
   body.className = "lang-ar";
-  console.log('Initial setup: body class set to', body.className);
-  
-  // CSS will handle content visibility based on body class
-  
-  // Show loading and load data
   showLoading();
   loadArabicData();
   contentAr.dataset.loaded = "true";
   
-  // Add test button for debugging (temporary)
-  setTimeout(() => {
-    console.log('After 2 seconds:');
-    console.log('contentAr display:', window.getComputedStyle(contentAr).display);
-    console.log('contentEn display:', window.getComputedStyle(contentEn).display);
-  }, 2000);
-  
-  // Add keyboard shortcuts
   document.addEventListener('keydown', function(e) {
     if (e.ctrlKey || e.metaKey) {
       switch(e.key) {
-        case 'r':
-          e.preventDefault();
-          refreshData();
-          break;
-        case 'e':
-          e.preventDefault();
-          exportData();
-          break;
-        case 'l':
-          e.preventDefault();
-          langSwitchBtn.click();
-          break;
-        case 't':
-          e.preventDefault();
-          testLanguageSwitch();
-          break;
+        case 'r': e.preventDefault(); refreshData(); break;
+        case 'e': e.preventDefault(); exportData(); break;
+        case 'l': e.preventDefault(); langSwitchBtn.click(); break;
       }
     }
   });
   
-  // Add search functionality
   const searchInput = document.getElementById('search-input');
   if (searchInput) {
     searchInput.addEventListener('input', function() {
       const searchTerm = this.value.toLowerCase();
-      const tables = document.querySelectorAll('table');
-      
-      tables.forEach(table => {
-        const rows = table.querySelectorAll('tbody tr');
-        rows.forEach(row => {
-          const text = row.textContent.toLowerCase();
-          row.style.display = text.includes(searchTerm) ? '' : 'none';
+      document.querySelectorAll('table').forEach(table => {
+        table.querySelectorAll('tbody tr').forEach(row => {
+          row.style.display = row.textContent.toLowerCase().includes(searchTerm) ? '' : 'none';
         });
       });
     });
