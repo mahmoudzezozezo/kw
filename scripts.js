@@ -1,8 +1,8 @@
 const csvUrl =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vT_n-jGM-XxCHRp_PE8KcNcPTzQhgMw1mnM7TTr3R62sG1W2zj-SrnCO5lrl3IsDmdw0vp41EtHvXq7/pub?output=csv";
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSSg37J5X0DRuSl3X61vyxB2j3szzkxqR_ut6hLeL0KudWW7sZljceS4FKtfR9cuGGHryL7tzRYVda3/pub?output=csv";
 
 const billCsvUrl =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vR8uqH4eGPe9dJZo-y18XJu0kpJWs5xvOyqy6NZVPuv3OLiKlhFa8sp9_O4xKzB6flpSv0RcOcvxhiL/pubhtml";
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTGd43YouVicDWfpYuY__AVeIJLp2xrRKXv3jBmcKibwPv5UQsyRBMAWBe5mgkV2IbwJ9EIVE69RrS/pubhtml";
 
 // Detect if this is a curl request (no user agent or contains curl)
 function isCurlRequest() {
