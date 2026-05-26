@@ -18,20 +18,6 @@ function isCurlRequest() {
 }
 
 // ─── Official ERA tariff effective 1 Sep 2024 ───────────────────────────────
-// Source: https://egyptera.org/en/TarrifAug2024.aspx
-//
-// Egypt uses a BRACKET system, not simple marginal tiers:
-//
-//  0–50    kWh → flat 0.68 EGP/kWh on entire consumption  + 1  EGP service fee
-//  51–100  kWh → flat 0.78 EGP/kWh on entire consumption  + 2  EGP service fee
-//  101–200 kWh → flat 0.95 EGP/kWh on entire consumption  + 6  EGP service fee
-//  201–350 kWh → progressive: 200×0.95 + (usage-200)×1.55 + 11 EGP service fee
-//  351–650 kWh → progressive: 200×0.95 + 150×1.55 + (usage-350)×1.95 + 15 EGP
-//  651–1000 kWh→ flat 2.10 EGP/kWh on ALL kWh             + 25 EGP service fee
-//  >1000   kWh → flat 2.23 EGP/kWh on ALL kWh             + 40 EGP service fee
-//
-// Verified: 255 kWh → (200×0.95)+(55×1.55)+11 = 190+85.25+11 = 286.25 EGP ✓
-// ────────────────────────────────────────────────────────────────────────────
 function calculateCostBreakdown(kWh) {
   let consumptionCost = 0;
   let serviceFee = 0;
@@ -153,16 +139,62 @@ function displayAveragePerDayEn(data) {
   document.getElementById("terminal-en").innerHTML += tableHtml;
 }
 
+// ─── Parse Arabic locale date strings from Google Sheets ────────────────────
+// Handles formats like:
+//   "12:55:38 م 2026/05/27"   (Arabic PM = م, AM = ص)
+//   "12:55:38 AM 2026/05/27"  (Latin AM/PM fallback)
+//   "2026/05/27 12:55:38"     (no AM/PM, 24h)
+// ─────────────────────────────────────────────────────────────────────────────
+function parseArabicDate(str) {
+  if (!str) return null;
+  str = str.trim();
+
+  // Detect Arabic PM (م) / AM (ص)
+  const isArabicPM = str.includes("\u0645"); // م
+  const isArabicAM = str.includes("\u0635"); // ص
+  const hasArabicAmPm = isArabicPM || isArabicAM;
+
+  // Strip Arabic AM/PM characters
+  str = str.replace(/[\u0635\u0645]/g, "").trim();
+
+  // Also handle Latin AM/PM
+  const isLatinPM = /pm/i.test(str);
+  const isLatinAM = /am/i.test(str);
+  str = str.replace(/[aApP][mM]/g, "").trim();
+
+  // Now extract digits: expect time HH:MM:SS and date YYYY/MM/DD (in any order)
+  const timeMatch = str.match(/(\d{1,2}):(\d{2}):(\d{2})/);
+  const dateMatch = str.match(/(\d{4})\/(\d{2})\/(\d{2})/);
+
+  if (!timeMatch || !dateMatch) return null;
+
+  let hh = parseInt(timeMatch[1]);
+  const mm = parseInt(timeMatch[2]);
+  const ss = parseInt(timeMatch[3]);
+  const yyyy = parseInt(dateMatch[1]);
+  const mo = parseInt(dateMatch[2]) - 1; // 0-indexed
+  const dd = parseInt(dateMatch[3]);
+
+  // Apply AM/PM conversion
+  if (hasArabicAmPm || isLatinAM || isLatinPM) {
+    if ((isArabicPM || isLatinPM) && hh !== 12) hh += 12;
+    if ((isArabicAM || isLatinAM) && hh === 12) hh = 0;
+  }
+
+  const d = new Date(yyyy, mo, dd, hh, mm, ss);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 function parseElecData(csvText) {
   const parsed = Papa.parse(csvText, { header: true });
   return parsed.data
     .map(normalizeRow)
     .filter((row) => row["date time"]?.trim() && row["reading"]?.trim())
     .map((row) => ({
-      timestamp: parseArabicDate(row["date time"].trim()),
+      timestamp: parseArabicDate(row["date time"]) || new Date(row["date time"].trim()),
       reading: parseInt(row["reading"].trim()),
     }))
-    .filter((row) => !isNaN(row.timestamp.getTime()) && !isNaN(row.reading))
+    .filter((row) => row.timestamp && !isNaN(row.timestamp.getTime()) && !isNaN(row.reading))
     .sort((a, b) => a.timestamp - b.timestamp);
 }
 
