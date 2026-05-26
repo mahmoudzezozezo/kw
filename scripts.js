@@ -1,8 +1,8 @@
 const csvUrl =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSSg37J5X0DRuSl3X61vyxB2j3szzkxqR_ut6hLeL0KudWW7sZljceS4FKtfR9cuGGHryL7tzRYVda3/pub?output=csv";
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQe94jYbetR9dIujTmievlAez-y5YhG5fSvNnjyRLCIGMwYi-f21wpADcMMkD1g6w2nXWMKJSol-JIc/pub?output=csv";
 
 const billCsvUrl =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTGd43YouVicDWfpYuY__AVeIJLp2xrRKXv3jBmcKibwPv5UQsyRBMAWBe5mgkV2IbwJ9EIVE69RrS/pub?output=csv";
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSB7bTJmKXWgsACWjB7kuKxWHT5KK60AnmpUhHHTGVaVltbX8jj2deC0SH4EslaFDs_3_sZfFiq7258/pub?output=csv";
 
 // Normalize a parsed row's keys to lowercase trimmed strings
 function normalizeRow(row) {
