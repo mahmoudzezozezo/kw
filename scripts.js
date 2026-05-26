@@ -159,7 +159,7 @@ function parseElecData(csvText) {
     .map(normalizeRow)
     .filter((row) => row["date time"]?.trim() && row["reading"]?.trim())
     .map((row) => ({
-      timestamp: new Date(row["date time"].trim()),
+      timestamp: parseArabicDate(row["date time"].trim()),
       reading: parseInt(row["reading"].trim()),
     }))
     .filter((row) => !isNaN(row.timestamp.getTime()) && !isNaN(row.reading))
