@@ -19,43 +19,11 @@ function isCurlRequest() {
 
 // ─── Official ERA tariff effective 1 Sep 2024 ───────────────────────────────
 function calculateCostBreakdown(kWh) {
-  let consumptionCost = 0;
-  let serviceFee = 0;
-  let tierLabel = "";
-
   if (kWh <= 0) return { consumptionCost: 0, serviceFee: 0, total: 0, tierLabel: "--" };
-
-  if (kWh <= 50) {
-    consumptionCost = kWh * 0.68;
-    serviceFee = 1;
-    tierLabel = "Tier 1 (≤50 kWh @ 0.68 EGP/kWh)";
-  } else if (kWh <= 100) {
-    consumptionCost = kWh * 0.78;
-    serviceFee = 2;
-    tierLabel = "Tier 2 (≤100 kWh @ 0.78 EGP/kWh)";
-  } else if (kWh <= 200) {
-    consumptionCost = kWh * 0.95;
-    serviceFee = 6;
-    tierLabel = "Tier 3 (≤200 kWh @ 0.95 EGP/kWh)";
-  } else if (kWh <= 350) {
-    consumptionCost = (200 * 0.95) + ((kWh - 200) * 1.55);
-    serviceFee = 11;
-    tierLabel = "Tier 4 (201–350 kWh: 200×0.95 + rest×1.55)";
-  } else if (kWh <= 650) {
-    consumptionCost = (200 * 0.95) + (150 * 1.55) + ((kWh - 350) * 1.95);
-    serviceFee = 15;
-    tierLabel = "Tier 5 (351–650 kWh: 200×0.95 + 150×1.55 + rest×1.95)";
-  } else if (kWh <= 1000) {
-    consumptionCost = kWh * 2.10;
-    serviceFee = 25;
-    tierLabel = "Tier 6 (≤1000 kWh @ 2.10 EGP/kWh flat)";
-  } else {
-    consumptionCost = kWh * 2.23;
-    serviceFee = 40;
-    tierLabel = "Tier 7 (>1000 kWh @ 2.23 EGP/kWh flat)";
-  }
-
-  return { consumptionCost, serviceFee, total: consumptionCost + serviceFee, tierLabel };
+  const consumptionCost = kWh * 2.74;
+  const serviceFee = 0;
+  const tierLabel = "Flat rate (2.74 EGP/kWh)";
+  return { consumptionCost, serviceFee, total: consumptionCost, tierLabel };
 }
 
 function calculateCost(kWh) {
