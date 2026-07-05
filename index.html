@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#000000"> 
+    <meta name="theme-color" content="#0c1929"> 
     <link rel="manifest" href="manifest.json">
     <title>ملخص استهلاك الكهرباء / Electricity Usage Summary</title>
     <link rel="stylesheet" href="assets/css/styles.css" />
@@ -22,10 +22,17 @@
             <span class="ar-text">مراقب استهلاك الكهرباء</span>
             <span class="en-text">Electricity Usage Monitor</span>
           </h1>
-          <button id="lang-switch" class="lang-switch">
-            <i class="fas fa-language"></i>
-            <span>Switch to English / التبديل إلى الإنجليزية</span>
-          </button>
+          <div class="header-actions">
+            <button class="btn-header-add" onclick="openAddReadingModal()">
+              <i class="fas fa-plus-circle"></i>
+              <span class="ar-text">إضافة قراءة</span>
+              <span class="en-text">Add Reading</span>
+            </button>
+            <button id="lang-switch" class="lang-switch">
+              <i class="fas fa-language"></i>
+              <span>Switch to English / التبديل إلى الإنجليزية</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -83,17 +90,21 @@
               <div class="breakdown-rows">
                 <div class="breakdown-row">
                   <span class="breakdown-label">
+                    <i class="fas fa-bolt"></i>
                     <span class="ar-text">تكلفة الاستهلاك</span>
                     <span class="en-text">Consumption cost</span>
                   </span>
                   <span class="breakdown-value"><span id="cost-consumption">--</span> <span class="ar-text">جنيه</span><span class="en-text">EGP</span></span>
+                  <div class="breakdown-bar" style="background:var(--primary-color)"></div>
                 </div>
                 <div class="breakdown-row">
                   <span class="breakdown-label">
+                    <i class="fas fa-tools"></i>
                     <span class="ar-text">رسوم الخدمة</span>
                     <span class="en-text">Service fee</span>
                   </span>
                   <span class="breakdown-value"><span id="cost-service">--</span> <span class="ar-text">جنيه</span><span class="en-text">EGP</span></span>
+                  <div class="breakdown-bar" style="background:var(--warning-color)"></div>
                 </div>
                 <div class="breakdown-row breakdown-total">
                   <span class="breakdown-label">
@@ -128,11 +139,16 @@
                 <span class="ar-text">تصدير البيانات</span>
                 <span class="en-text">Export Data</span>
               </button>
-              <div class="action-info">
-                <i class="fas fa-info-circle"></i>
-                <span class="ar-text">تحديث تلقائي للتوقعات</span>
-                <span class="en-text">Projections update automatically</span>
-              </div>
+              <button class="action-btn" onclick="openAddBillModal()" style="border-color:var(--primary-color);background:rgba(14,165,233,0.06)">
+                <i class="fas fa-receipt"></i>
+                <span class="ar-text">إضافة فاتورة</span>
+                <span class="en-text">Add Bill</span>
+              </button>
+              <button class="action-btn action-btn-add" onclick="openAddReadingModal()">
+                <i class="fas fa-plus-circle"></i>
+                <span class="ar-text">إضافة قراءة</span>
+                <span class="en-text">Add Reading</span>
+              </button>
             </div>
           </div>
         </div>
@@ -219,6 +235,11 @@
                 <option value="12" selected>12 months</option>
                 <option value="24">24 months</option>
               </select>
+              <button class="btn-header-add" onclick="openAddBillModal()" title="Add Bill" style="padding:0.5rem 0.75rem;font-size:0.8rem">
+                <i class="fas fa-receipt"></i>
+                <span class="ar-text">فاتورة</span>
+                <span class="en-text">Bill</span>
+              </button>
             </div>
           </div>
           <div class="card-content">
@@ -250,7 +271,112 @@
             <div id="content-en" class="lang-content">
               <div id="terminal-en" class="data-display"></div>
             </div>
+            <div class="data-footer">
+              <button class="btn-add-inline" onclick="openAddReadingModal()">
+                <i class="fas fa-plus-circle"></i>
+                <span class="ar-text">إضافة قراءة جديدة</span>
+                <span class="en-text">Add New Reading</span>
+              </button>
+            </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Add Reading Modal -->
+      <div id="add-reading-modal" class="modal-overlay" style="display:none">
+        <div class="modal">
+          <div class="modal-header">
+            <h3><i class="fas fa-bolt"></i> <span class="ar-text">إضافة قراءة عداد</span><span class="en-text">Add Meter Reading</span></h3>
+            <button class="modal-close" onclick="closeAddReadingModal()">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <form id="reading-form" onsubmit="submitReading(event)">
+            <div class="modal-content">
+              <div class="form-group">
+                <label for="reading-date">
+                  <span class="ar-text">التاريخ والوقت</span>
+                  <span class="en-text">Date & Time</span>
+                </label>
+                <input type="datetime-local" id="reading-date" name="date_time" class="form-input" required>
+              </div>
+              <div class="form-group">
+                <label for="reading-value">
+                  <span class="ar-text">قراءة العداد (كيلوواط/ساعة)</span>
+                  <span class="en-text">Meter Reading (kWh)</span>
+                </label>
+                <input type="number" id="reading-value" name="reading" class="form-input" step="0.001" min="0" required placeholder="e.g. 1234.567">
+              </div>
+              <div class="form-group">
+                <label for="reading-notes">
+                  <span class="ar-text">ملاحظات</span>
+                  <span class="en-text">Notes</span>
+                </label>
+                <input type="text" id="reading-notes" name="notes" class="form-input" placeholder="Optional">
+              </div>
+              <div id="form-status" class="form-status"></div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn" onclick="closeAddReadingModal()">
+                <span class="ar-text">إلغاء</span>
+                <span class="en-text">Cancel</span>
+              </button>
+              <button type="submit" class="btn btn-primary" id="submit-btn">
+                <i class="fas fa-paper-plane"></i>
+                <span class="ar-text">إرسال</span>
+                <span class="en-text">Submit</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Add Bill Modal -->
+      <div id="add-bill-modal" class="modal-overlay" style="display:none">
+        <div class="modal info">
+          <div class="modal-header">
+            <h3><i class="fas fa-receipt"></i> <span class="ar-text">إضافة فاتورة</span><span class="en-text">Add Bill</span></h3>
+            <button class="modal-close" onclick="closeAddBillModal()">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <form id="bill-form" onsubmit="submitBill(event)">
+            <div class="modal-content">
+              <div class="form-group">
+                <label for="bill-month">
+                  <span class="ar-text">الشهر</span>
+                  <span class="en-text">Month</span>
+                </label>
+                <input type="month" id="bill-month" name="bill_month" class="form-input" required>
+              </div>
+              <div class="form-group">
+                <label for="bill-amount">
+                  <span class="ar-text">إجمالي الفاتورة (جنيه)</span>
+                  <span class="en-text">Total Bill (EGP)</span>
+                </label>
+                <input type="number" id="bill-amount" name="bill_amount" class="form-input" step="0.01" min="0" required placeholder="e.g. 150.00">
+              </div>
+              <div class="form-group">
+                <label for="bill-notes">
+                  <span class="ar-text">ملاحظات</span>
+                  <span class="en-text">Notes</span>
+                </label>
+                <input type="text" id="bill-notes" name="notes" class="form-input" placeholder="Optional">
+              </div>
+              <div id="bill-form-status" class="form-status"></div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn" onclick="closeAddBillModal()">
+                <span class="ar-text">إلغاء</span>
+                <span class="en-text">Cancel</span>
+              </button>
+              <button type="submit" class="btn btn-primary" id="bill-submit-btn">
+                <i class="fas fa-paper-plane"></i>
+                <span class="ar-text">إرسال</span>
+                <span class="en-text">Submit</span>
+              </button>
+            </div>
+          </form>
         </div>
       </div>
 
@@ -258,8 +384,8 @@
       <div id="loading-overlay" class="loading-overlay">
         <div class="loading-spinner">
           <i class="fas fa-bolt fa-spin"></i>
-          <p class="ar-text">جاري تحميل البيانات...</p>
-          <p class="en-text">Loading data...</p>
+          <p class="ar-text">جاري تحميل بيانات الكهرباء...</p>
+          <p class="en-text">Loading electricity data...</p>
         </div>
       </div>
 
@@ -269,8 +395,16 @@
       </footer>
     </div>
 
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+    <script src="assets/js/firebase-config.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="assets/js/scripts.js"></script>
+
+    <!-- Floating Action Button -->
+    <button class="fab" onclick="openAddReadingModal()" title="Add Reading">
+      <i class="fas fa-plus"></i>
+    </button>
   </body>
 </html>

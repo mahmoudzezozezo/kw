@@ -1,7 +1,22 @@
 {
-    "theme_color": "#8936FF",
-    "background_color": "#2EC6FE",
+    "name": "مراقب استهلاك الكهرباء / Electricity Usage Monitor",
+    "short_name": "Electricity Monitor",
+    "description": "Track your household electricity consumption, estimate bills, and monitor usage trends",
+    "theme_color": "#0ea5e9",
+    "background_color": "#0f172a",
     "icons": [
+        {
+            "purpose": "maskable",
+            "sizes": "192x192",
+            "src": "assets/img/icon512_maskable.png",
+            "type": "image/png"
+        },
+        {
+            "purpose": "any",
+            "sizes": "192x192",
+            "src": "assets/img/icon512_rounded.png",
+            "type": "image/png"
+        },
         {
             "purpose": "maskable",
             "sizes": "512x512",
@@ -18,8 +33,8 @@
     "orientation": "any",
     "display": "standalone",
     "dir": "auto",
-    "lang": "en-US",
-    "start_url": "https://mahmoudzezozezo.github.io/kw/",
-    "scope": "https://mahmoudzezozezo.github.io/kw/",
-    "id": "https://mahmoudzezozezo.github.io/kw/"
+    "lang": "ar",
+    "start_url": "/",
+    "scope": "/",
+    "id": "/"
 }

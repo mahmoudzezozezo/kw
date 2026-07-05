@@ -1,29 +1,18 @@
-const csvUrl =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQe94jYbetR9dIujTmievlAez-y5YhG5fSvNnjyRLCIGMwYi-f21wpADcMMkD1g6w2nXWMKJSol-JIc/pub?output=csv";
-
-const billCsvUrl =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSB7bTJmKXWgsACWjB7kuKxWHT5KK60AnmpUhHHTGVaVltbX8jj2deC0SH4EslaFDs_3_sZfFiq7258/pub?output=csv";
-
-// Normalize a parsed row's keys to lowercase trimmed strings
-function normalizeRow(row) {
-  const normalized = {};
-  for (const key of Object.keys(row)) {
-    normalized[key.trim().toLowerCase()] = row[key];
-  }
-  return normalized;
-}
-
-function isCurlRequest() {
-  return !navigator.userAgent || navigator.userAgent.includes("curl");
-}
-
-// ─── Official ERA tariff effective 1 Sep 2024 ───────────────────────────────
 function calculateCostBreakdown(kWh) {
-  if (kWh <= 0) return { consumptionCost: 0, serviceFee: 0, total: 0, tierLabel: "--" };
+  if (kWh <= 0) {
+    return {
+      consumptionCost: 0,
+      serviceFee: 0,
+      total: 0,
+      tierLabel: "--"
+    };
+  }
+
   const consumptionCost = kWh * 2.74;
   const serviceFee = 0;
-  const tierLabel = "Flat rate (2.74 EGP/kWh)";
-  return { consumptionCost, serviceFee, total: consumptionCost, tierLabel };
+  const total = consumptionCost + serviceFee;
+
+  return { consumptionCost, serviceFee, total, tierLabel: "" };
 }
 
 function calculateCost(kWh) {
@@ -53,7 +42,6 @@ function getCategoryEn(kWh) {
 function logAr(line) { document.getElementById("terminal-ar").textContent += "\n" + line; }
 function logEn(line) { document.getElementById("terminal-en").textContent += "\n" + line; }
 
-// Render average per day table in Arabic
 function displayAveragePerDayAr(data) {
   let tableHtml = "<table><thead><tr><th>#</th><th>التاريخ والوقت</th><th>القراءة</th><th>الفارق الزمني (ساعات)</th><th>المعدل اليومي (كيلوواط/ساعة)</th><th>التكلفة المقدرة</th></tr></thead><tbody>";
   const startIndex = Math.max(0, data.length - 21);
@@ -80,7 +68,6 @@ function displayAveragePerDayAr(data) {
   document.getElementById("terminal-ar").innerHTML += tableHtml;
 }
 
-// Render average per day table in English
 function displayAveragePerDayEn(data) {
   let tableHtml = "<table><thead><tr><th>#</th><th>Date & Time</th><th>Reading</th><th>Time Diff (hrs)</th><th>Avg/Day (kWh)</th><th>Est. Bill</th></tr></thead><tbody>";
   const startIndex = Math.max(0, data.length - 21);
@@ -107,80 +94,33 @@ function displayAveragePerDayEn(data) {
   document.getElementById("terminal-en").innerHTML += tableHtml;
 }
 
-// ─── Parse Arabic locale date strings from Google Sheets ────────────────────
-// Handles formats like:
-//   "12:55:38 م 2026/05/27"   (Arabic PM = م, AM = ص)
-//   "12:55:38 AM 2026/05/27"  (Latin AM/PM fallback)
-//   "2026/05/27 12:55:38"     (no AM/PM, 24h)
-// ─────────────────────────────────────────────────────────────────────────────
-function parseArabicDate(str) {
-  if (!str) return null;
-  str = str.trim();
-
-  // Detect Arabic PM (م) / AM (ص)
-  const isArabicPM = str.includes("\u0645"); // م
-  const isArabicAM = str.includes("\u0635"); // ص
-  const hasArabicAmPm = isArabicPM || isArabicAM;
-
-  // Strip Arabic AM/PM characters
-  str = str.replace(/[\u0635\u0645]/g, "").trim();
-
-  // Also handle Latin AM/PM
-  const isLatinPM = /pm/i.test(str);
-  const isLatinAM = /am/i.test(str);
-  str = str.replace(/[aApP][mM]/g, "").trim();
-
-  // Now extract digits: expect time HH:MM:SS and date YYYY/MM/DD (in any order)
-  const timeMatch = str.match(/(\d{1,2}):(\d{2}):(\d{2})/);
-  const dateMatch = str.match(/(\d{4})\/(\d{2})\/(\d{2})/);
-
-  if (!timeMatch || !dateMatch) return null;
-
-  let hh = parseInt(timeMatch[1]);
-  const mm = parseInt(timeMatch[2]);
-  const ss = parseInt(timeMatch[3]);
-  const yyyy = parseInt(dateMatch[1]);
-  const mo = parseInt(dateMatch[2]) - 1; // 0-indexed
-  const dd = parseInt(dateMatch[3]);
-
-  // Apply AM/PM conversion
-  if (hasArabicAmPm || isLatinAM || isLatinPM) {
-    if ((isArabicPM || isLatinPM) && hh !== 12) hh += 12;
-    if ((isArabicAM || isLatinAM) && hh === 12) hh = 0;
-  }
-
-  const d = new Date(yyyy, mo, dd, hh, mm, ss);
-  return isNaN(d.getTime()) ? null : d;
+async function fetchReadings() {
+  const snapshot = await db.collection("readings").orderBy("dateTime", "asc").get();
+  const data = [];
+  snapshot.forEach(doc => {
+    const d = doc.data();
+    const ts = d.dateTime?.toDate();
+    if (ts && !isNaN(ts.getTime()) && typeof d.reading === "number") {
+      data.push({ timestamp: ts, reading: d.reading });
+    }
+  });
+  return data;
 }
 
-function parseElecData(csvText) {
-  const parsed = Papa.parse(csvText, { header: true });
-  return parsed.data
-    .map(normalizeRow)
-    .filter((row) => row["date time"]?.trim() && row["reading"]?.trim())
-    .map((row) => ({
-      timestamp: new Date(row["date time"]) || new Date(row["date time"].trim()),
-      reading: parseInt(row["reading"].trim()),
-    }))
-    .filter((row) => row.timestamp && !isNaN(row.timestamp.getTime()) && !isNaN(row.reading))
-    .sort((a, b) => a.timestamp - b.timestamp);
+async function fetchBills() {
+  const snapshot = await db.collection("bills").orderBy("date", "asc").get();
+  const data = [];
+  snapshot.forEach(doc => {
+    const d = doc.data();
+    const date = d.date?.toDate();
+    if (date && !isNaN(date.getTime()) && typeof d.totalBill === "number") {
+      data.push({ date, cost: d.totalBill, month: date.toISOString().slice(0, 7) });
+    }
+  });
+  return data;
 }
 
-function parseBillData(csvText) {
-  const parsed = Papa.parse(csvText, { header: true });
-  return parsed.data
-    .map(normalizeRow)
-    .filter((row) => row["date"]?.trim() && row["total_bill"]?.trim())
-    .map((row) => ({
-      date: new Date(row["date"].trim()),
-      cost: parseFloat(row["total_bill"].trim()),
-      month: new Date(row["date"].trim()).toISOString().slice(0, 7),
-    }))
-    .filter((row) => !isNaN(row.date.getTime()) && !isNaN(row.cost));
-}
-
-function processElecData(csvText) {
-  const data = parseElecData(csvText);
+function processElecData(data) {
   const now = new Date();
   const last30DaysData = data.filter((row) => row.timestamp >= new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000));
   if (last30DaysData.length < 2) return { data, error: true };
@@ -194,16 +134,30 @@ function processElecData(csvText) {
   return { data, first, last, totalUsage, daysDiff, avgPerDay, breakdown, error: false };
 }
 
-function loadArabicData() {
-  document.getElementById("terminal-ar").innerHTML = "> جاري تحميل بيانات استهلاك الكهرباء...";
-  fetch(csvUrl)
-    .then((r) => r.text())
-    .then((csvText) => {
-      const result = processElecData(csvText);
-      if (result.error) { logAr("> ❌ لا توجد بيانات كافية أو بيانات غير صالحة."); hideLoading(); return; }
-      const { data, first, last, totalUsage, avgPerDay, breakdown } = result;
-      const category = getCategoryAr(totalUsage);
-      updateSummaryCards({ totalUsage, avgPerDay, cost: breakdown.total, tier: category, breakdown });
+async function loadData(lang) {
+  const isAr = lang === "ar";
+  const terminal = isAr ? document.getElementById("terminal-ar") : document.getElementById("terminal-en");
+  terminal.innerHTML = isAr ? "> جاري تحميل بيانات استهلاك الكهرباء..." : "> Loading electricity usage data...";
+  showLoading();
+
+  try {
+    const readings = await fetchReadings();
+    if (readings.length < 2) {
+      (isAr ? logAr : logEn)("> ❌ Not enough data or invalid data.");
+      hideLoading();
+      return;
+    }
+    const result = processElecData(readings);
+    if (result.error) {
+      (isAr ? logAr : logEn)("> ❌ Not enough data or invalid data.");
+      hideLoading();
+      return;
+    }
+    const { data, first, last, totalUsage, avgPerDay, breakdown } = result;
+    const category = isAr ? getCategoryAr(totalUsage) : getCategoryEn(totalUsage);
+    updateSummaryCards({ totalUsage, avgPerDay, cost: breakdown.total, tier: category, breakdown });
+
+    if (isAr) {
       logAr("> ملخص استهلاك الكهرباء للشهر الماضي");
       logAr("----------------------------------------");
       logAr(`📅 أول قراءة: ${first.timestamp.toLocaleDateString("ar-EG")}`);
@@ -214,26 +168,7 @@ function loadArabicData() {
       logAr(`🔧 رسوم الخدمة: ${breakdown.serviceFee.toFixed(2)} جنيه`);
       logAr(`💰 إجمالي الفاتورة المقدرة: ${breakdown.total.toFixed(2)} جنيه`);
       logAr(`📈 الشريحة: ${category}`);
-      currentData = data;
-      displayAveragePerDayAr(data);
-      displayRollingCostChartEn(data);
-      hideLoading();
-    })
-    .catch((err) => { logAr("> ❌ خطأ: " + err.message); hideLoading(); });
-}
-
-function loadEnglishData() {
-  const terminalEn = document.getElementById("terminal-en");
-  if (!terminalEn) { hideLoading(); return; }
-  terminalEn.innerHTML = "> Loading electricity usage data...";
-  fetch(csvUrl)
-    .then((r) => r.text())
-    .then((csvText) => {
-      const result = processElecData(csvText);
-      if (result.error) { logEn("> ❌ Not enough data or invalid data."); hideLoading(); return; }
-      const { data, first, last, totalUsage, avgPerDay, breakdown } = result;
-      const category = getCategoryEn(totalUsage);
-      updateSummaryCards({ totalUsage, avgPerDay, cost: breakdown.total, tier: category, breakdown });
+    } else {
       logEn("> Electricity Usage Summary for Last Month");
       logEn("----------------------------------------");
       logEn(`📅 First Reading: ${first.timestamp.toLocaleDateString("en-US")}`);
@@ -244,13 +179,18 @@ function loadEnglishData() {
       logEn(`🔧 Service fee: ${breakdown.serviceFee.toFixed(2)} EGP`);
       logEn(`💰 Estimated total bill: ${breakdown.total.toFixed(2)} EGP`);
       logEn(`📈 Billing tier: ${category}`);
-      currentData = data;
-      displayAveragePerDayEn(data);
-      displayRollingCostChartEn(data);
-      hideLoading();
-    })
-    .catch((err) => { logEn("> ❌ Error: " + err.message); hideLoading(); });
+    }
+    currentData = data;
+    (isAr ? displayAveragePerDayAr : displayAveragePerDayEn)(data);
+    displayRollingCostChartEn(data);
+  } catch (err) {
+    (isAr ? logAr : logEn)("> ❌ " + (isAr ? "خطأ: " : "Error: ") + err.message);
+  }
+  hideLoading();
 }
+
+function loadArabicData() { loadData("ar"); }
+function loadEnglishData() { loadData("en"); }
 
 function displayRollingCostChartEn(data, monthsPeriod = 12) {
   const chartContainer = document.getElementById("shared-chart-container");
@@ -272,65 +212,60 @@ function displayRollingCostChartEn(data, monthsPeriod = 12) {
     }
   }
 
-  fetch(billCsvUrl)
-    .then((r) => r.text())
-    .then((csvText) => {
-      const billingData = parseBillData(csvText);
-      const billingByMonth = {};
-      billingData.forEach((e) => { billingByMonth[e.month] = e.cost; });
+  fetchBills().then(billingData => {
+    const billingByMonth = {};
+    billingData.forEach((e) => { billingByMonth[e.month] = e.cost; });
 
-      const months = [...new Set(rollingCosts.map((rc) => rc.month))];
-      const filteredMonths = months.slice(-monthsPeriod);
+    const months = [...new Set(rollingCosts.map((rc) => rc.month))];
+    const filteredMonths = months.slice(-monthsPeriod);
 
-      const estimatedCostsByMonth = {};
-      months.forEach((month) => {
-        const costsInMonth = rollingCosts.filter((rc) => rc.month === month);
-        estimatedCostsByMonth[month] = costsInMonth.length ? costsInMonth[costsInMonth.length - 1].cost : null;
-      });
+    const estimatedCostsByMonth = {};
+    months.forEach((month) => {
+      const costsInMonth = rollingCosts.filter((rc) => rc.month === month);
+      estimatedCostsByMonth[month] = costsInMonth.length ? costsInMonth[costsInMonth.length - 1].cost : null;
+    });
 
-      new Chart(ctx, {
-        type: "line",
-        data: {
-          labels: filteredMonths,
-          datasets: [
-            {
-              label: "Estimated Bill",
-              data: filteredMonths.map((m) => estimatedCostsByMonth[m] || null),
-              borderColor: "#10b981", backgroundColor: "rgba(16,185,129,0.1)",
-              tension: 0.4, fill: true,
-              pointBackgroundColor: "#10b981", pointBorderColor: "#ffffff", pointBorderWidth: 2, pointRadius: 5, pointHoverRadius: 8,
-            },
-            {
-              label: "Actual Bill",
-              data: filteredMonths.map((m) => billingByMonth[m] || null),
-              borderColor: "#3b82f6", backgroundColor: "rgba(59,130,246,0.1)",
-              tension: 0.4, fill: false, spanGaps: true,
-              pointBackgroundColor: "#3b82f6", pointBorderColor: "#ffffff", pointBorderWidth: 2, pointRadius: 5, pointHoverRadius: 8,
-            },
-          ],
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          interaction: { mode: "index", intersect: false },
-          plugins: {
-            legend: { labels: { color: "#f1f5f9", usePointStyle: true, padding: 20 } },
-            tooltip: {
-              backgroundColor: "#1e293b", titleColor: "#f1f5f9", bodyColor: "#94a3b8",
-              borderColor: "#3b82f6", borderWidth: 1, cornerRadius: 8, displayColors: true,
-              callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(2)} EGP` },
-            },
+    new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: filteredMonths,
+        datasets: [
+          {
+            label: "Estimated Bill",
+            data: filteredMonths.map((m) => estimatedCostsByMonth[m] || null),
+            borderColor: "#10b981", backgroundColor: "rgba(16,185,129,0.1)",
+            tension: 0.4, fill: true,
+            pointBackgroundColor: "#10b981", pointBorderColor: "#ffffff", pointBorderWidth: 2, pointRadius: 5, pointHoverRadius: 8,
           },
-          scales: {
-            x: { ticks: { color: "#94a3b8", maxTicksLimit: 8 }, grid: { color: "#334155", drawBorder: false }, border: { display: false } },
-            y: { beginAtZero: true, ticks: { color: "#94a3b8", callback: (v) => v.toFixed(0) + " EGP" }, grid: { color: "#334155", drawBorder: false }, border: { display: false } },
+          {
+            label: "Actual Bill",
+            data: filteredMonths.map((m) => billingByMonth[m] || null),
+            borderColor: "#0ea5e9", backgroundColor: "rgba(14,165,233,0.1)",
+            tension: 0.4, fill: false, spanGaps: true,
+            pointBackgroundColor: "#0ea5e9", pointBorderColor: "#ffffff", pointBorderWidth: 2, pointRadius: 5, pointHoverRadius: 8,
+          },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { labels: { color: "#f1f5f9", usePointStyle: true, padding: 20 } },
+          tooltip: {
+            backgroundColor: "#1e293b", titleColor: "#f1f5f9", bodyColor: "#94a3b8",
+            borderColor: "#0ea5e9", borderWidth: 1, cornerRadius: 8, displayColors: true,
+            callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(2)} EGP` },
           },
         },
-      });
-    })
-    .catch((err) => { logEn("> ❌ Failed to fetch billing CSV: " + err.message); });
+        scales: {
+          x: { ticks: { color: "#94a3b8", maxTicksLimit: 8 }, grid: { color: "#334155", drawBorder: false }, border: { display: false } },
+          y: { beginAtZero: true, ticks: { color: "#94a3b8", callback: (v) => v.toFixed(0) + " EGP" }, grid: { color: "#334155", drawBorder: false }, border: { display: false } },
+        },
+      },
+    });
+  }).catch((err) => { logEn("> ❌ Failed to fetch billing data: " + err.message); });
 }
 
-// ── Global state ──────────────────────────────────────────────────────────────
 let currentData = [];
 let currentLang = "ar";
 let currentSummary = {};
@@ -349,6 +284,14 @@ function updateSummaryCards(summary) {
     if (el("cost-consumption")) el("cost-consumption").textContent = bd.consumptionCost.toFixed(2);
     if (el("cost-service"))     el("cost-service").textContent     = bd.serviceFee.toFixed(2);
     if (el("cost-total"))       el("cost-total").textContent       = bd.total.toFixed(2);
+
+    const bars = document.querySelectorAll('.breakdown-bar');
+    if (bars.length && bd.total > 0) {
+      const costs = [bd.consumptionCost, bd.serviceFee];
+      bars.forEach((bar, i) => {
+        bar.style.width = (costs[i] / bd.total * 100) + '%';
+      });
+    }
   }
   currentSummary = summary;
   updateProjectionsDisplay();
@@ -389,7 +332,6 @@ function updateProjectionsDisplay() {
   }
 }
 
-// ── Language switch ───────────────────────────────────────────────────────────
 const langSwitchBtn = document.getElementById("lang-switch");
 const contentEn = document.getElementById("content-en");
 const contentAr = document.getElementById("content-ar");
@@ -411,7 +353,6 @@ langSwitchBtn.addEventListener("click", () => {
   }
 });
 
-// ── Quick actions ─────────────────────────────────────────────────────────────
 function refreshData() {
   showLoading();
   if (currentLang === "ar") { contentAr.dataset.loaded = "false"; document.getElementById("terminal-ar").innerHTML = "> جاري تحميل بيانات استهلاك الكهرباء..."; loadArabicData(); }
@@ -440,18 +381,167 @@ document.getElementById("chart-period")?.addEventListener("change", function () 
   if (currentData.length > 0) displayRollingCostChartEn(currentData, parseInt(this.value));
 });
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+function openAddReadingModal() {
+  const modal = document.getElementById('add-reading-modal')
+  modal.style.display = 'flex'
+  modal.style.opacity = '0'
+  setTimeout(() => modal.style.opacity = '1', 10)
+
+  const now = new Date()
+  const offset = now.getTimezoneOffset()
+  const local = new Date(now.getTime() - offset * 60000)
+  document.getElementById('reading-date').value = local.toISOString().slice(0, 16)
+  document.getElementById('form-status').style.display = 'none'
+  document.getElementById('form-status').className = 'form-status'
+
+  setTimeout(() => document.getElementById('reading-value').focus(), 300)
+  modal.onclick = (e) => { if (e.target === modal) closeAddReadingModal() }
+}
+
+function closeAddReadingModal() {
+  const modal = document.getElementById('add-reading-modal')
+  modal.style.opacity = '0'
+  modal.onclick = null
+  setTimeout(() => modal.style.display = 'none', 200)
+}
+
+async function submitReading(event) {
+  event.preventDefault()
+  const statusEl = document.getElementById('form-status')
+  const submitBtn = document.getElementById('submit-btn')
+
+  const dateTimeStr = document.getElementById('reading-date').value
+  const reading = parseFloat(document.getElementById('reading-value').value)
+  const notes = document.getElementById('reading-notes').value
+
+  statusEl.style.display = 'none'
+  statusEl.className = 'form-status'
+  submitBtn.disabled = true
+  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...'
+
+  try {
+    await db.collection('readings').add({
+      dateTime: firebase.firestore.Timestamp.fromDate(new Date(dateTimeStr)),
+      reading,
+      notes: notes || '',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    })
+
+    statusEl.className = 'form-status success'
+    statusEl.textContent = currentLang === 'ar'
+      ? '✅ تم إرسال القراءة بنجاح!'
+      : '✅ Reading submitted successfully!'
+    statusEl.style.display = 'block'
+    event.target.reset()
+    setTimeout(() => { closeAddReadingModal(); refreshData(); }, 1500)
+  } catch (err) {
+    statusEl.className = 'form-status error'
+    statusEl.textContent = currentLang === 'ar'
+      ? '❌ فشل الإرسال: ' + err.message
+      : '❌ Submission failed: ' + err.message
+    statusEl.style.display = 'block'
+  } finally {
+    submitBtn.disabled = false
+    submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> ' +
+      (currentLang === 'ar' ? 'إرسال' : 'Submit')
+  }
+}
+
+function openAddBillModal() {
+  const modal = document.getElementById('add-bill-modal')
+  modal.style.display = 'flex'
+  modal.style.opacity = '0'
+  setTimeout(() => modal.style.opacity = '1', 10)
+
+  const now = new Date()
+  document.getElementById('bill-month').value = now.toISOString().slice(0, 7)
+  document.getElementById('bill-form-status').style.display = 'none'
+  document.getElementById('bill-form-status').className = 'form-status'
+
+  setTimeout(() => document.getElementById('bill-amount').focus(), 300)
+  modal.onclick = (e) => { if (e.target === modal) closeAddBillModal() }
+}
+
+function closeAddBillModal() {
+  const modal = document.getElementById('add-bill-modal')
+  modal.style.opacity = '0'
+  modal.onclick = null
+  setTimeout(() => modal.style.display = 'none', 200)
+}
+
+async function submitBill(event) {
+  event.preventDefault()
+  const statusEl = document.getElementById('bill-form-status')
+  const submitBtn = document.getElementById('bill-submit-btn')
+
+  const monthStr = document.getElementById('bill-month').value
+  const amount = parseFloat(document.getElementById('bill-amount').value)
+  const notes = document.getElementById('bill-notes').value
+
+  if (!monthStr || isNaN(amount) || amount <= 0) {
+    statusEl.className = 'form-status error'
+    statusEl.textContent = currentLang === 'ar' ? '❌ يرجى إدخال شهر ومبلغ صحيح' : '❌ Please enter a valid month and amount'
+    statusEl.style.display = 'block'
+    return
+  }
+
+  statusEl.style.display = 'none'
+  statusEl.className = 'form-status'
+  submitBtn.disabled = true
+  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...'
+
+  try {
+    const date = new Date(monthStr + '-01T00:00:00')
+
+    await db.collection('bills').add({
+      date: firebase.firestore.Timestamp.fromDate(date),
+      totalBill: amount,
+      notes: notes || '',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    })
+
+    statusEl.className = 'form-status success'
+    statusEl.textContent = currentLang === 'ar'
+      ? '✅ تم إرسال الفاتورة بنجاح!'
+      : '✅ Bill submitted successfully!'
+    statusEl.style.display = 'block'
+    event.target.reset()
+    setTimeout(() => { closeAddBillModal(); refreshData(); }, 1500)
+  } catch (err) {
+    statusEl.className = 'form-status error'
+    statusEl.textContent = currentLang === 'ar'
+      ? '❌ فشل الإرسال: ' + err.message
+      : '❌ Submission failed: ' + err.message
+    statusEl.style.display = 'block'
+  } finally {
+    submitBtn.disabled = false
+    submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> ' +
+      (currentLang === 'ar' ? 'إرسال' : 'Submit')
+  }
+}
+
 window.onload = () => {
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js");
+  }
   body.className = "lang-ar";
   showLoading();
   loadArabicData();
   contentAr.dataset.loaded = "true";
 
   document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      const readingModal = document.getElementById('add-reading-modal')
+      const billModal = document.getElementById('add-bill-modal')
+      if (readingModal.style.display === 'flex') closeAddReadingModal()
+      else if (billModal.style.display === 'flex') closeAddBillModal()
+    }
     if (e.ctrlKey || e.metaKey) {
       if (e.key === "r") { e.preventDefault(); refreshData(); }
       if (e.key === "e") { e.preventDefault(); exportData(); }
       if (e.key === "l") { e.preventDefault(); langSwitchBtn.click(); }
+      if (e.key === "k") { e.preventDefault(); openAddReadingModal(); }
+      if (e.key === "b") { e.preventDefault(); openAddBillModal(); }
     }
   });
 
