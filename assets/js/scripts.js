@@ -101,7 +101,7 @@ async function fetchReadings() {
     const d = doc.data();
     const ts = d.dateTime?.toDate();
     if (ts && !isNaN(ts.getTime()) && typeof d.reading === "number") {
-      data.push({ timestamp: ts, reading: d.reading });
+      data.push({ timestamp: ts, reading: d.reading, docId: doc.id });
     }
   });
   return data;
@@ -114,7 +114,7 @@ async function fetchBills() {
     const d = doc.data();
     const date = d.date?.toDate();
     if (date && !isNaN(date.getTime()) && typeof d.totalBill === "number") {
-      data.push({ date, cost: d.totalBill, month: date.toISOString().slice(0, 7) });
+      data.push({ date, cost: d.totalBill, month: date.toISOString().slice(0, 7), docId: doc.id });
     }
   });
   return data;
@@ -379,6 +379,238 @@ function toggleFilters() { document.getElementById("search-input").focus(); }
 
 document.getElementById("chart-period")?.addEventListener("change", function () {
   if (currentData.length > 0) displayRollingCostChartEn(currentData, parseInt(this.value));
+});
+
+// ── Password Protection ──────────────────────────────────────────────────────
+const MANAGER_PASSWORD = "1122";
+
+function showModal(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = "flex";
+  el.style.opacity = "0";
+  setTimeout(() => el.style.opacity = "1", 10);
+}
+
+function hideModal(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.opacity = "0";
+  setTimeout(() => el.style.display = "none", 200);
+}
+
+function isAuthenticated() {
+  return sessionStorage.getItem("elec_auth") === "true";
+}
+
+function openManageData() {
+  if (isAuthenticated()) {
+    showModal("manage-modal");
+    loadManageReadings();
+    return;
+  }
+  document.getElementById("password-error").style.display = "none";
+  document.getElementById("password-input").value = "";
+  showModal("password-modal");
+  setTimeout(() => document.getElementById("password-input").focus(), 300);
+}
+
+function checkPassword(event) {
+  event.preventDefault();
+  const pwd = document.getElementById("password-input").value;
+  if (pwd === MANAGER_PASSWORD) {
+    sessionStorage.setItem("elec_auth", "true");
+    hideModal("password-modal");
+    showModal("manage-modal");
+    loadManageReadings();
+  } else {
+    const err = document.getElementById("password-error");
+    err.style.display = "block";
+    document.getElementById("password-input").focus();
+  }
+}
+
+// ── Tab Switching ────────────────────────────────────────────────────────────
+function switchTab(btn, tab) {
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  document.querySelectorAll(".tab-content").forEach(c => c.style.display = "none");
+  document.getElementById("manage-" + tab + "-tab").style.display = "block";
+  if (tab === "readings") loadManageReadings();
+  if (tab === "bills")    loadManageBills();
+}
+
+// ── Load Readings for Management ─────────────────────────────────────────────
+async function loadManageReadings() {
+  const tbody = document.querySelector("#manage-readings-table tbody");
+  if (!tbody) return;
+  try {
+    const snapshot = await db.collection("readings").orderBy("dateTime", "desc").get();
+    const rows = [];
+    snapshot.forEach(doc => {
+      const d = doc.data();
+      const ts = d.dateTime?.toDate();
+      if (ts && !isNaN(ts.getTime()) && typeof d.reading === "number") {
+        rows.push({ docId: doc.id, dateTime: ts, reading: d.reading });
+      }
+    });
+    tbody.innerHTML = rows.map((r, i) => `
+      <tr>
+        <td>${rows.length - i}</td>
+        <td>${r.dateTime.toLocaleString(currentLang === "ar" ? "ar-EG" : "en-US")}</td>
+        <td>${r.reading}</td>
+        <td class="action-cell">
+          <button class="action-btn-xs edit-btn" onclick="editReading('${r.docId}')" title="Edit"><i class="fas fa-pen"></i></button>
+          <button class="action-btn-xs delete-btn" onclick="confirmDelete('reading','${r.docId}')" title="Delete"><i class="fas fa-trash"></i></button>
+        </td>
+      </tr>
+    `).join("");
+    document.getElementById("readings-count").textContent = rows.length + " items";
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="4" class="error-cell">Error: ${e.message}</td></tr>`;
+  }
+}
+
+// ── Load Bills for Management ────────────────────────────────────────────────
+async function loadManageBills() {
+  const tbody = document.querySelector("#manage-bills-table tbody");
+  if (!tbody) return;
+  try {
+    const snapshot = await db.collection("bills").orderBy("date", "desc").get();
+    const rows = [];
+    snapshot.forEach(doc => {
+      const d = doc.data();
+      const date = d.date?.toDate();
+      if (date && !isNaN(date.getTime()) && typeof d.totalBill === "number") {
+        rows.push({ docId: doc.id, date, totalBill: d.totalBill });
+      }
+    });
+    tbody.innerHTML = rows.map((r, i) => `
+      <tr>
+        <td>${rows.length - i}</td>
+        <td>${r.date.toISOString().slice(0, 7)}</td>
+        <td>${r.totalBill.toFixed(2)} EGP</td>
+        <td class="action-cell">
+          <button class="action-btn-xs edit-btn" onclick="editBill('${r.docId}')" title="Edit"><i class="fas fa-pen"></i></button>
+          <button class="action-btn-xs delete-btn" onclick="confirmDelete('bill','${r.docId}')" title="Delete"><i class="fas fa-trash"></i></button>
+        </td>
+      </tr>
+    `).join("");
+    document.getElementById("bills-count").textContent = rows.length + " items";
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="4" class="error-cell">Error: ${e.message}</td></tr>`;
+  }
+}
+
+// ── Edit Reading ─────────────────────────────────────────────────────────────
+async function editReading(docId) {
+  try {
+    const doc = await db.collection("readings").doc(docId).get();
+    const d = doc.data();
+    if (!d) return;
+    const ts = d.dateTime?.toDate();
+    document.getElementById("edit-reading-id").value = docId;
+    const offset = ts.getTimezoneOffset();
+    const local = new Date(ts.getTime() - offset * 60000);
+    document.getElementById("edit-reading-date").value = local.toISOString().slice(0, 16);
+    document.getElementById("edit-reading-value").value = d.reading;
+    showModal("edit-reading-modal");
+  } catch (e) {
+    alert("Error: " + e.message);
+  }
+}
+
+async function saveEditReading(event) {
+  event.preventDefault();
+  const docId = document.getElementById("edit-reading-id").value;
+  const dateStr = document.getElementById("edit-reading-date").value;
+  const reading = parseFloat(document.getElementById("edit-reading-value").value);
+  if (!dateStr || isNaN(reading)) return;
+  try {
+    await db.collection("readings").doc(docId).update({
+      dateTime: firebase.firestore.Timestamp.fromDate(new Date(dateStr)),
+      reading
+    });
+    hideModal("edit-reading-modal");
+    loadManageReadings();
+    refreshData();
+  } catch (e) {
+    alert("Error: " + e.message);
+  }
+}
+
+// ── Edit Bill ────────────────────────────────────────────────────────────────
+async function editBill(docId) {
+  try {
+    const doc = await db.collection("bills").doc(docId).get();
+    const d = doc.data();
+    if (!d) return;
+    const date = d.date?.toDate();
+    document.getElementById("edit-bill-id").value = docId;
+    document.getElementById("edit-bill-month").value = date.toISOString().slice(0, 7);
+    document.getElementById("edit-bill-amount").value = d.totalBill;
+    showModal("edit-bill-modal");
+  } catch (e) {
+    alert("Error: " + e.message);
+  }
+}
+
+async function saveEditBill(event) {
+  event.preventDefault();
+  const docId = document.getElementById("edit-bill-id").value;
+  const monthStr = document.getElementById("edit-bill-month").value;
+  const amount = parseFloat(document.getElementById("edit-bill-amount").value);
+  if (!monthStr || isNaN(amount)) return;
+  try {
+    await db.collection("bills").doc(docId).update({
+      date: firebase.firestore.Timestamp.fromDate(new Date(monthStr + "-01T00:00:00")),
+      totalBill: amount
+    });
+    hideModal("edit-bill-modal");
+    loadManageBills();
+    refreshData();
+  } catch (e) {
+    alert("Error: " + e.message);
+  }
+}
+
+// ── Delete ───────────────────────────────────────────────────────────────────
+let pendingDelete = null;
+
+function confirmDelete(type, docId) {
+  pendingDelete = { type, docId };
+  const msg = document.getElementById("confirm-message");
+  if (type === "reading") {
+    msg.innerHTML = '<span class="ar-text">هل أنت متأكد من حذف هذه القراءة؟</span><span class="en-text">Are you sure you want to delete this reading?</span>';
+  } else {
+    msg.innerHTML = '<span class="ar-text">هل أنت متأكد من حذف هذه الفاتورة؟</span><span class="en-text">Are you sure you want to delete this bill?</span>';
+  }
+  showModal("confirm-modal");
+}
+
+async function executeDelete() {
+  if (!pendingDelete) return;
+  const { type, docId } = pendingDelete;
+  pendingDelete = null;
+  try {
+    await db.collection(type === "reading" ? "readings" : "bills").doc(docId).delete();
+    hideModal("confirm-modal");
+    if (type === "reading") loadManageReadings();
+    else loadManageBills();
+    refreshData();
+  } catch (e) {
+    alert("Error: " + e.message);
+  }
+}
+
+// ── Keyboard shortcuts for manage modals ─────────────────────────────────────
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    ["password-modal","manage-modal","confirm-modal","edit-reading-modal","edit-bill-modal"].forEach(id => {
+      const m = document.getElementById(id);
+      if (m && m.style.display === "flex") hideModal(id);
+    });
+  }
 });
 
 function openAddReadingModal() {

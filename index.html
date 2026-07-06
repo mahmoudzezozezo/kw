@@ -149,6 +149,11 @@
                 <span class="ar-text">إضافة قراءة</span>
                 <span class="en-text">Add Reading</span>
               </button>
+              <button class="action-btn action-btn-manage" onclick="openManageData()">
+                <i class="fas fa-database"></i>
+                <span class="ar-text">إدارة البيانات</span>
+                <span class="en-text">Manage Data</span>
+              </button>
             </div>
           </div>
         </div>
@@ -375,6 +380,194 @@
                 <span class="ar-text">إرسال</span>
                 <span class="en-text">Submit</span>
               </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Password Modal -->
+      <div id="password-modal" class="modal-overlay" style="display:none">
+        <div class="modal info" style="max-width:400px">
+          <div class="modal-header">
+            <h3><i class="fas fa-lock"></i> <span class="ar-text">كلمة المرور</span><span class="en-text">Password</span></h3>
+            <button class="modal-close" onclick="hideModal('password-modal')">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <form onsubmit="checkPassword(event)">
+            <div class="modal-content">
+              <div class="form-group">
+                <label for="password-input">
+                  <span class="ar-text">أدخل كلمة المرور لإدارة البيانات</span>
+                  <span class="en-text">Enter password to manage data</span>
+                </label>
+                <input type="password" id="password-input" class="form-input" placeholder="Password" autocomplete="off" required>
+              </div>
+              <p id="password-error" class="form-status error" style="display:none">
+                <span class="ar-text">كلمة المرور خطأ</span>
+                <span class="en-text">Wrong password</span>
+              </p>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn" onclick="hideModal('password-modal')">
+                <span class="ar-text">إلغاء</span><span class="en-text">Cancel</span>
+              </button>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-unlock"></i> <span class="ar-text">دخول</span><span class="en-text">Unlock</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Manage Data Modal -->
+      <div id="manage-modal" class="modal-overlay" style="display:none">
+        <div class="modal" style="max-width:800px;width:95vw">
+          <div class="modal-header">
+            <h3><i class="fas fa-database"></i> <span class="ar-text">إدارة البيانات</span><span class="en-text">Manage Data</span></h3>
+            <button class="modal-close" onclick="hideModal('manage-modal')">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="modal-tabs">
+            <button class="tab-btn active" data-tab="readings" onclick="switchTab(this,'readings')">
+              <span class="ar-text">قراءات العداد</span><span class="en-text">Readings</span>
+            </button>
+            <button class="tab-btn" data-tab="bills" onclick="switchTab(this,'bills')">
+              <span class="ar-text">الفواتير</span><span class="en-text">Bills</span>
+            </button>
+          </div>
+          <div class="modal-content" style="max-height:60vh;overflow-y:auto">
+            <div id="manage-readings-tab" class="tab-content">
+              <div class="manage-toolbar">
+                <button class="btn btn-primary btn-sm" onclick="openAddReadingModal();hideModal('manage-modal')">
+                  <i class="fas fa-plus"></i> <span class="ar-text">إضافة</span><span class="en-text">Add</span>
+                </button>
+                <span class="manage-count" id="readings-count"></span>
+              </div>
+              <div class="manage-table-wrapper">
+                <table class="manage-table" id="manage-readings-table">
+                  <thead>
+                    <tr>
+                      <th style="width:40px">#</th>
+                      <th><span class="ar-text">التاريخ</span><span class="en-text">Date</span></th>
+                      <th><span class="ar-text">القراءة</span><span class="en-text">Reading</span></th>
+                      <th style="width:100px"><span class="ar-text">إجراءات</span><span class="en-text">Actions</span></th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+            <div id="manage-bills-tab" class="tab-content" style="display:none">
+              <div class="manage-toolbar">
+                <button class="btn btn-primary btn-sm" onclick="openAddBillModal();hideModal('manage-modal')">
+                  <i class="fas fa-plus"></i> <span class="ar-text">إضافة</span><span class="en-text">Add</span>
+                </button>
+                <span class="manage-count" id="bills-count"></span>
+              </div>
+              <div class="manage-table-wrapper">
+                <table class="manage-table" id="manage-bills-table">
+                  <thead>
+                    <tr>
+                      <th style="width:40px">#</th>
+                      <th><span class="ar-text">الشهر</span><span class="en-text">Month</span></th>
+                      <th><span class="ar-text">الفاتورة</span><span class="en-text">Bill</span></th>
+                      <th style="width:100px"><span class="ar-text">إجراءات</span><span class="en-text">Actions</span></th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Confirm Delete Modal -->
+      <div id="confirm-modal" class="modal-overlay" style="display:none">
+        <div class="modal warning" style="max-width:400px">
+          <div class="modal-header">
+            <h3><i class="fas fa-exclamation-triangle" style="color:var(--danger-color)"></i>
+              <span class="ar-text">تأكيد الحذف</span><span class="en-text">Confirm Delete</span></h3>
+            <button class="modal-close" onclick="hideModal('confirm-modal')">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="modal-content">
+            <p id="confirm-message" class="confirm-text">
+              <span class="ar-text">هل أنت متأكد من حذف هذا العنصر؟</span>
+              <span class="en-text">Are you sure you want to delete this item?</span>
+            </p>
+            <p class="confirm-warning">
+              <span class="ar-text">لا يمكن التراجع عن هذا الإجراء.</span>
+              <span class="en-text">This action cannot be undone.</span>
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn" onclick="hideModal('confirm-modal')">
+              <span class="ar-text">إلغاء</span><span class="en-text">Cancel</span>
+            </button>
+            <button class="btn" id="confirm-delete-btn" onclick="executeDelete()" style="background:var(--danger-color);color:white">
+              <i class="fas fa-trash"></i> <span class="ar-text">حذف</span><span class="en-text">Delete</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Edit Reading Modal -->
+      <div id="edit-reading-modal" class="modal-overlay" style="display:none">
+        <div class="modal">
+          <div class="modal-header">
+            <h3><i class="fas fa-pen"></i> <span class="ar-text">تعديل القراءة</span><span class="en-text">Edit Reading</span></h3>
+            <button class="modal-close" onclick="hideModal('edit-reading-modal')">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <form onsubmit="saveEditReading(event)">
+            <div class="modal-content">
+              <input type="hidden" id="edit-reading-id">
+              <div class="form-group">
+                <label for="edit-reading-date"><span class="ar-text">التاريخ والوقت</span><span class="en-text">Date & Time</span></label>
+                <input type="datetime-local" id="edit-reading-date" class="form-input" required>
+              </div>
+              <div class="form-group">
+                <label for="edit-reading-value"><span class="ar-text">قراءة العداد</span><span class="en-text">Meter Reading</span></label>
+                <input type="number" id="edit-reading-value" class="form-input" step="0.001" min="0" required>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn" onclick="hideModal('edit-reading-modal')"><span class="ar-text">إلغاء</span><span class="en-text">Cancel</span></button>
+              <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> <span class="ar-text">حفظ</span><span class="en-text">Save</span></button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Edit Bill Modal -->
+      <div id="edit-bill-modal" class="modal-overlay" style="display:none">
+        <div class="modal info">
+          <div class="modal-header">
+            <h3><i class="fas fa-pen"></i> <span class="ar-text">تعديل الفاتورة</span><span class="en-text">Edit Bill</span></h3>
+            <button class="modal-close" onclick="hideModal('edit-bill-modal')">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <form onsubmit="saveEditBill(event)">
+            <div class="modal-content">
+              <input type="hidden" id="edit-bill-id">
+              <div class="form-group">
+                <label for="edit-bill-month"><span class="ar-text">الشهر</span><span class="en-text">Month</span></label>
+                <input type="month" id="edit-bill-month" class="form-input" required>
+              </div>
+              <div class="form-group">
+                <label for="edit-bill-amount"><span class="ar-text">إجمالي الفاتورة (جنيه)</span><span class="en-text">Total Bill (EGP)</span></label>
+                <input type="number" id="edit-bill-amount" class="form-input" step="0.01" min="0" required>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn" onclick="hideModal('edit-bill-modal')"><span class="ar-text">إلغاء</span><span class="en-text">Cancel</span></button>
+              <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> <span class="ar-text">حفظ</span><span class="en-text">Save</span></button>
             </div>
           </form>
         </div>

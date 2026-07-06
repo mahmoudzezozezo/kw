@@ -1698,4 +1698,147 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     transition-duration: 0.01ms !important;
   }
 }
-/* test
+/* ── Manage Data Modal ──────────────────────────────────────────────────────── */
+.modal-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+.tab-btn {
+  flex: 1;
+  padding: 1rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border-bottom: 2px solid transparent;
+}
+.tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255,255,255,0.03);
+}
+.tab-btn.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+  background: rgba(14,165,233,0.08);
+}
+.tab-content {
+  padding: 0;
+}
+.manage-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  gap: 1rem;
+}
+.manage-count {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.manage-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.manage-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.manage-table th {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  padding: 0.65rem 0.75rem;
+  font-weight: 600;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+.manage-table td {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+.manage-table tbody tr:hover {
+  background: var(--surface-hover);
+}
+.manage-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.action-cell {
+  white-space: nowrap;
+  text-align: center;
+}
+.action-btn-xs {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+}
+.action-btn-xs.edit-btn {
+  background: rgba(14,165,233,0.12);
+  color: var(--primary-color);
+  margin-left: 0.35rem;
+}
+[dir="rtl"] .action-btn-xs.edit-btn {
+  margin-left: 0;
+  margin-right: 0.35rem;
+}
+.action-btn-xs.edit-btn:hover {
+  background: var(--primary-color);
+  color: white;
+  transform: scale(1.1);
+}
+.action-btn-xs.delete-btn {
+  background: rgba(239,68,68,0.12);
+  color: var(--danger-color);
+}
+.action-btn-xs.delete-btn:hover {
+  background: var(--danger-color);
+  color: white;
+  transform: scale(1.1);
+}
+.action-btn-manage {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+.action-btn-manage i {
+  color: var(--accent-color);
+}
+.action-btn-manage:hover {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: white;
+}
+.action-btn-manage:hover i {
+  color: white;
+}
+.btn-sm {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.8rem;
+}
+.confirm-text {
+  font-size: 1.05rem;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+}
+.confirm-warning {
+  font-size: 0.85rem;
+  color: var(--danger-color);
+  font-weight: 500;
+}
+.error-cell {
+  color: var(--danger-color);
+  text-align: center;
+  padding: 1.5rem !important;
+  font-style: italic;
+}
