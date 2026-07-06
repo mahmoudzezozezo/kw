@@ -43,55 +43,13 @@ function logAr(line) { document.getElementById("terminal-ar").textContent += "\n
 function logEn(line) { document.getElementById("terminal-en").textContent += "\n" + line; }
 
 function displayAveragePerDayAr(data) {
-  let tableHtml = "<table><thead><tr><th>#</th><th>التاريخ والوقت</th><th>القراءة</th><th>الفارق الزمني (ساعات)</th><th>المعدل اليومي (كيلوواط/ساعة)</th><th>التكلفة المقدرة</th></tr></thead><tbody>";
-  const startIndex = Math.max(0, data.length - 21);
-  for (let i = startIndex; i < data.length - 1; i++) {
-    const row = data[i];
-    const nextRow = data[i + 1];
-    if (nextRow) {
-      const hoursDiff = (nextRow.timestamp - row.timestamp) / (1000 * 60 * 60);
-      const daysDiff = hoursDiff / 24;
-      const kWhUsage = nextRow.reading - row.reading;
-      const avgPerDay = kWhUsage / daysDiff;
-      const bd = calculateCostBreakdown(kWhUsage);
-      tableHtml += `<tr>
-        <td>${i + 1}</td>
-        <td>${row.timestamp.toLocaleString("ar-EG")}</td>
-        <td>${row.reading}</td>
-        <td>${hoursDiff.toFixed(1)}</td>
-        <td>${avgPerDay.toFixed(2)}</td>
-        <td>${bd.total.toFixed(2)} جنيه</td>
-      </tr>`;
-    }
-  }
-  tableHtml += "</tbody></table>";
-  document.getElementById("terminal-ar").innerHTML += tableHtml;
+  PAG.MAIN_PAGE = 1;
+  renderMainTable('ar');
 }
 
 function displayAveragePerDayEn(data) {
-  let tableHtml = "<table><thead><tr><th>#</th><th>Date & Time</th><th>Reading</th><th>Time Diff (hrs)</th><th>Avg/Day (kWh)</th><th>Est. Bill</th></tr></thead><tbody>";
-  const startIndex = Math.max(0, data.length - 21);
-  for (let i = startIndex; i < data.length - 1; i++) {
-    const row = data[i];
-    const nextRow = data[i + 1];
-    if (nextRow) {
-      const hoursDiff = (nextRow.timestamp - row.timestamp) / (1000 * 60 * 60);
-      const daysDiff = hoursDiff / 24;
-      const kWhUsage = nextRow.reading - row.reading;
-      const avgPerDay = kWhUsage / daysDiff;
-      const bd = calculateCostBreakdown(kWhUsage);
-      tableHtml += `<tr>
-        <td>${i + 1}</td>
-        <td>${row.timestamp.toLocaleString("en-US")}</td>
-        <td>${row.reading}</td>
-        <td>${hoursDiff.toFixed(1)}</td>
-        <td>${avgPerDay.toFixed(2)}</td>
-        <td>${bd.total.toFixed(2)} EGP</td>
-      </tr>`;
-    }
-  }
-  tableHtml += "</tbody></table>";
-  document.getElementById("terminal-en").innerHTML += tableHtml;
+  PAG.MAIN_PAGE = 1;
+  renderMainTable('en');
 }
 
 async function fetchReadings() {
@@ -270,6 +228,73 @@ let currentData = [];
 let currentLang = "ar";
 let currentSummary = {};
 
+// Pagination
+const PAG = { MAIN_PAGE: 1, MAIN_PER_PAGE: 20, MANAGE_PER_PAGE: 15, MGR_READ_PAGE: 1, MGR_BILL_PAGE: 1 };
+
+function renderPagination(current, total, prevFn, goFn, rtl) {
+  if (total <= 1) return '';
+  let h = '<div class="pagination"><div class="pagination-inner">';
+  h += `<button class="page-btn" onclick="${prevFn}(${-1})" ${current <= 1 ? 'disabled' : ''}>${rtl ? '›' : '‹'}</button>`;
+  for (let p = 1; p <= total; p++) {
+    if (p === current) { h += `<span class="page-current">${p}</span>`; }
+    else if (p === 1 || p === total || Math.abs(p - current) <= 1) { h += `<button class="page-btn" onclick="${goFn}(${p})">${p}</button>`; }
+    else if (Math.abs(p - current) === 2) { h += `<span class="page-dots">…</span>`; }
+  }
+  h += `<button class="page-btn" onclick="${prevFn}(${1})" ${current >= total ? 'disabled' : ''}>${rtl ? '‹' : '›'}</button>`;
+  h += `<span class="page-info">${current}/${total}</span></div></div>`;
+  return h;
+}
+
+function changeMainPage(delta) {
+  const data = currentData;
+  if (data.length < 2) return;
+  const total = Math.ceil((data.length - 1) / PAG.MAIN_PER_PAGE) || 1;
+  PAG.MAIN_PAGE = Math.max(1, Math.min(PAG.MAIN_PAGE + delta, total));
+  if (currentLang === "ar") renderMainTable('ar'); else renderMainTable('en');
+}
+
+function goToMainPage(p) {
+  PAG.MAIN_PAGE = p;
+  if (currentLang === "ar") renderMainTable('ar'); else renderMainTable('en');
+}
+
+function renderMainTable(lang) {
+  const data = currentData;
+  if (data.length < 2) return;
+  const isAr = lang === 'ar';
+  const totalPairs = data.length - 1;
+  const totalPages = Math.ceil(totalPairs / PAG.MAIN_PER_PAGE) || 1;
+  PAG.MAIN_PAGE = Math.min(PAG.MAIN_PAGE, totalPages);
+  const endIdx = totalPairs - (PAG.MAIN_PAGE - 1) * PAG.MAIN_PER_PAGE;
+  const startIdx = Math.max(0, totalPairs - PAG.MAIN_PAGE * PAG.MAIN_PER_PAGE);
+
+  const headers = isAr
+    ? ['#','التاريخ والوقت','القراءة','الفارق (س)','المعدل (ك.و/يوم)','التكلفة']
+    : ['#','Date & Time','Reading','Diff (hrs)','Avg (kWh/day)','Est. Cost'];
+
+  let html = '<div id="main-table-wrap"><table><thead><tr>';
+  headers.forEach(h => html += `<th>${h}</th>`);
+  html += '</tr></thead><tbody>';
+  let num = startIdx + 1;
+  for (let i = startIdx; i < endIdx; i++) {
+    const row = data[i], next = data[i + 1];
+    if (!next) continue;
+    const hoursDiff = (next.timestamp - row.timestamp) / (1000 * 60 * 60);
+    const usage = next.reading - row.reading;
+    const avg = usage / (hoursDiff / 24);
+    const bd = calculateCostBreakdown(usage);
+    const dateStr = row.timestamp.toLocaleString(isAr ? "ar-EG" : "en-US");
+    html += `<tr><td>${num}</td><td>${dateStr}</td><td>${row.reading}</td><td>${hoursDiff.toFixed(1)}</td><td>${avg.toFixed(2)}</td><td>${bd.total.toFixed(2)}${isAr?' جنيه':' EGP'}</td></tr>`;
+    num++;
+  }
+  html += `</tbody></table>${renderPagination(PAG.MAIN_PAGE, totalPages, 'changeMainPage', 'goToMainPage', isAr)}</div>`;
+
+  const existing = document.getElementById("main-table-wrap");
+  const terminal = document.getElementById(isAr ? "terminal-ar" : "terminal-en");
+  if (existing) existing.outerHTML = html;
+  else terminal.innerHTML += html;
+}
+
 function showLoading() { document.getElementById("loading-overlay").style.display = "flex"; }
 function hideLoading() { document.getElementById("loading-overlay").style.display = "none"; }
 const el = (id) => document.getElementById(id);
@@ -444,6 +469,7 @@ function switchTab(btn, tab) {
 async function loadManageReadings() {
   const tbody = document.querySelector("#manage-readings-table tbody");
   if (!tbody) return;
+  const pagEl = document.getElementById("manage-readings-pag");
   try {
     const snapshot = await db.collection("readings").orderBy("dateTime", "desc").get();
     const rows = [];
@@ -454,9 +480,15 @@ async function loadManageReadings() {
         rows.push({ docId: doc.id, dateTime: ts, reading: d.reading });
       }
     });
-    tbody.innerHTML = rows.map((r, i) => `
+    const total = rows.length;
+    const totalPages = Math.ceil(total / PAG.MANAGE_PER_PAGE) || 1;
+    PAG.MGR_READ_PAGE = Math.min(PAG.MGR_READ_PAGE, totalPages);
+    const start = (PAG.MGR_READ_PAGE - 1) * PAG.MANAGE_PER_PAGE;
+    const end = Math.min(start + PAG.MANAGE_PER_PAGE, total);
+    const pageRows = rows.slice(start, end);
+    tbody.innerHTML = pageRows.map((r, i) => `
       <tr>
-        <td>${rows.length - i}</td>
+        <td>${total - start - i}</td>
         <td>${r.dateTime.toLocaleString(currentLang === "ar" ? "ar-EG" : "en-US")}</td>
         <td>${r.reading}</td>
         <td class="action-cell">
@@ -465,7 +497,8 @@ async function loadManageReadings() {
         </td>
       </tr>
     `).join("");
-    document.getElementById("readings-count").textContent = rows.length + " items";
+    document.getElementById("readings-count").textContent = `${start + 1}-${end} of ${total}`;
+    if (pagEl) pagEl.outerHTML = buildManagePagination(PAG.MGR_READ_PAGE, totalPages, 'readings');
   } catch (e) {
     tbody.innerHTML = `<tr><td colspan="4" class="error-cell">Error: ${e.message}</td></tr>`;
   }
@@ -475,6 +508,7 @@ async function loadManageReadings() {
 async function loadManageBills() {
   const tbody = document.querySelector("#manage-bills-table tbody");
   if (!tbody) return;
+  const pagEl = document.getElementById("manage-bills-pag");
   try {
     const snapshot = await db.collection("bills").orderBy("date", "desc").get();
     const rows = [];
@@ -485,9 +519,15 @@ async function loadManageBills() {
         rows.push({ docId: doc.id, date, totalBill: d.totalBill });
       }
     });
-    tbody.innerHTML = rows.map((r, i) => `
+    const total = rows.length;
+    const totalPages = Math.ceil(total / PAG.MANAGE_PER_PAGE) || 1;
+    PAG.MGR_BILL_PAGE = Math.min(PAG.MGR_BILL_PAGE, totalPages);
+    const start = (PAG.MGR_BILL_PAGE - 1) * PAG.MANAGE_PER_PAGE;
+    const end = Math.min(start + PAG.MANAGE_PER_PAGE, total);
+    const pageRows = rows.slice(start, end);
+    tbody.innerHTML = pageRows.map((r, i) => `
       <tr>
-        <td>${rows.length - i}</td>
+        <td>${total - start - i}</td>
         <td>${r.date.toISOString().slice(0, 7)}</td>
         <td>${r.totalBill.toFixed(2)} EGP</td>
         <td class="action-cell">
@@ -496,10 +536,47 @@ async function loadManageBills() {
         </td>
       </tr>
     `).join("");
-    document.getElementById("bills-count").textContent = rows.length + " items";
+    document.getElementById("bills-count").textContent = `${start + 1}-${end} of ${total}`;
+    if (pagEl) pagEl.outerHTML = buildManagePagination(PAG.MGR_BILL_PAGE, totalPages, 'bills');
   } catch (e) {
     tbody.innerHTML = `<tr><td colspan="4" class="error-cell">Error: ${e.message}</td></tr>`;
   }
+}
+
+function changeManagePage(delta, type) {
+  if (type === 'readings') {
+    const txt = document.getElementById("readings-count").textContent;
+    const totalItems = parseInt(txt.split('of')[1]) || 0;
+    const total = Math.ceil(totalItems / PAG.MANAGE_PER_PAGE) || 1;
+    PAG.MGR_READ_PAGE = Math.max(1, Math.min(PAG.MGR_READ_PAGE + delta, total));
+    loadManageReadings();
+  } else {
+    const txt = document.getElementById("bills-count").textContent;
+    const totalItems = parseInt(txt.split('of')[1]) || 0;
+    const total = Math.ceil(totalItems / PAG.MANAGE_PER_PAGE) || 1;
+    PAG.MGR_BILL_PAGE = Math.max(1, Math.min(PAG.MGR_BILL_PAGE + delta, total));
+    loadManageBills();
+  }
+}
+
+function goToManagePage(p, type) {
+  if (type === 'readings') { PAG.MGR_READ_PAGE = p; loadManageReadings(); }
+  else { PAG.MGR_BILL_PAGE = p; loadManageBills(); }
+}
+
+function buildManagePagination(current, total, type) {
+  if (total <= 1) return '<div id="manage-' + type + '-pag"></div>';
+  const rtl = currentLang === "ar";
+  let h = '<div id="manage-' + type + '-pag" class="pagination"><div class="pagination-inner">';
+  h += `<button class="page-btn" onclick="changeManagePage(${-1},'${type}')" ${current <= 1 ? 'disabled' : ''}>${rtl ? '›' : '‹'}</button>`;
+  for (let p = 1; p <= total; p++) {
+    if (p === current) h += `<span class="page-current">${p}</span>`;
+    else if (p === 1 || p === total || Math.abs(p - current) <= 1) h += `<button class="page-btn" onclick="goToManagePage(${p},'${type}')">${p}</button>`;
+    else if (Math.abs(p - current) === 2) h += `<span class="page-dots">…</span>`;
+  }
+  h += `<button class="page-btn" onclick="changeManagePage(${1},'${type}')" ${current >= total ? 'disabled' : ''}>${rtl ? '‹' : '›'}</button>`;
+  h += `<span class="page-info">${current}/${total}</span></div></div>`;
+  return h;
 }
 
 // ── Edit Reading ─────────────────────────────────────────────────────────────
