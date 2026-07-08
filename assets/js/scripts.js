@@ -83,7 +83,7 @@ function processElecData(data) {
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   let windowData = data.filter((row) => row.timestamp >= thirtyDaysAgo);
   if (windowData.length < 2 && data.length >= 2) {
-    windowData = data.slice(-Math.min(data.length, 5));
+    windowData = data.slice(-2);
   }
   if (windowData.length < 2) return { data, error: true };
   const first = windowData[0];
