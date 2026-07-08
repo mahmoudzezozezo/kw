@@ -162,15 +162,16 @@ function displayRollingCostChartEn(data, monthsPeriod = 12) {
   chartContainer.appendChild(canvas);
   const ctx = canvas.getContext("2d");
 
-  const rollingCosts = [];
-  for (let i = 0; i < data.length; i++) {
-    const currentDate = data[i].timestamp;
-    const startDate = new Date(currentDate.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const windowData = data.filter((r) => r.timestamp >= startDate && r.timestamp <= currentDate);
-    if (windowData.length < 2) continue;
-    const usage = windowData[windowData.length - 1].reading - windowData[0].reading;
-    if (usage > 0) {
-      rollingCosts.push({ date: currentDate, cost: calculateCost(usage), month: currentDate.toISOString().slice(0, 7) });
+  const pairCosts = [];
+  for (let i = 0; i < data.length - 1; i++) {
+    const prev = data[i], next = data[i + 1];
+    const daysDiff = (next.timestamp - prev.timestamp) / (1000 * 60 * 60 * 24);
+    const usage = next.reading - prev.reading;
+    if (usage > 0 && daysDiff > 0) {
+      const monthlyEstimate = (usage / daysDiff) * 30;
+      const cost = calculateCost(monthlyEstimate);
+      const month = next.timestamp.toISOString().slice(0, 7);
+      pairCosts.push({ label: month, cost, date: next.timestamp });
     }
   }
 
@@ -178,30 +179,29 @@ function displayRollingCostChartEn(data, monthsPeriod = 12) {
     const billingByMonth = {};
     billingData.forEach((e) => { billingByMonth[e.month] = e.cost; });
 
-    const months = [...new Set(rollingCosts.map((rc) => rc.month))];
-    const filteredMonths = months.slice(-monthsPeriod);
+    const months = [...new Set(pairCosts.map((p) => p.label))].slice(-monthsPeriod);
 
     const estimatedCostsByMonth = {};
     months.forEach((month) => {
-      const costsInMonth = rollingCosts.filter((rc) => rc.month === month);
-      estimatedCostsByMonth[month] = costsInMonth.length ? costsInMonth[costsInMonth.length - 1].cost : null;
+      const entries = pairCosts.filter((p) => p.label === month);
+      estimatedCostsByMonth[month] = entries.length ? entries[entries.length - 1].cost : null;
     });
 
     new Chart(ctx, {
       type: "line",
       data: {
-        labels: filteredMonths,
+        labels: months,
         datasets: [
           {
             label: "Estimated Bill",
-            data: filteredMonths.map((m) => estimatedCostsByMonth[m] || null),
+            data: months.map((m) => estimatedCostsByMonth[m] || null),
             borderColor: "#10b981", backgroundColor: "rgba(16,185,129,0.1)",
             tension: 0.4, fill: true,
             pointBackgroundColor: "#10b981", pointBorderColor: "#ffffff", pointBorderWidth: 2, pointRadius: 5, pointHoverRadius: 8,
           },
           {
             label: "Actual Bill",
-            data: filteredMonths.map((m) => billingByMonth[m] || null),
+            data: months.map((m) => billingByMonth[m] || null),
             borderColor: "#0ea5e9", backgroundColor: "rgba(14,165,233,0.1)",
             tension: 0.4, fill: false, spanGaps: true,
             pointBackgroundColor: "#0ea5e9", pointBorderColor: "#ffffff", pointBorderWidth: 2, pointRadius: 5, pointHoverRadius: 8,
