@@ -831,7 +831,7 @@ async function submitBill(event) {
 
 window.onload = () => {
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/sw.js");
+    navigator.serviceWorker.register("sw.js");
   }
   body.className = "lang-ar";
   showLoading();

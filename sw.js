@@ -1,13 +1,13 @@
 const CACHE_NAME = "electricity-monitor-v1";
 const ASSETS = [
-  "/",
-  "/index.html",
-  "/manifest.json",
-  "/sw.js",
-  "/assets/css/styles.css",
-  "/assets/js/scripts.js",
-  "/assets/img/icon512_maskable.png",
-  "/assets/img/icon512_rounded.png",
+  "./",
+  "./index.html",
+  "./manifest.json",
+  "./sw.js",
+  "./assets/css/styles.css",
+  "./assets/js/scripts.js",
+  "./assets/img/icon512_maskable.png",
+  "./assets/img/icon512_rounded.png",
 ];
 
 self.addEventListener("install", (event) => {
