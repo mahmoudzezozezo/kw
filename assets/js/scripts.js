@@ -80,10 +80,14 @@ async function fetchBills() {
 
 function processElecData(data) {
   const now = new Date();
-  const last30DaysData = data.filter((row) => row.timestamp >= new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000));
-  if (last30DaysData.length < 2) return { data, error: true };
-  const first = last30DaysData[0];
-  const last = last30DaysData[last30DaysData.length - 1];
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  let windowData = data.filter((row) => row.timestamp >= thirtyDaysAgo);
+  if (windowData.length < 2 && data.length >= 2) {
+    windowData = data.slice(-Math.min(data.length, 5));
+  }
+  if (windowData.length < 2) return { data, error: true };
+  const first = windowData[0];
+  const last = windowData[windowData.length - 1];
   const totalUsage = last.reading - first.reading;
   if (totalUsage <= 0) return { data, error: true };
   const daysDiff = (last.timestamp - first.timestamp) / (1000 * 60 * 60 * 24);
