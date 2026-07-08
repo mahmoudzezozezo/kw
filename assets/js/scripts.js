@@ -179,7 +179,9 @@ function displayRollingCostChartEn(data, monthsPeriod = 12) {
     const billingByMonth = {};
     billingData.forEach((e) => { billingByMonth[e.month] = e.cost; });
 
-    const months = [...new Set(pairCosts.map((p) => p.label))].slice(-monthsPeriod);
+    const estMonths = [...new Set(pairCosts.map((p) => p.label))];
+    const billMonths = billingData.map((b) => b.month);
+    const months = [...new Set([...estMonths, ...billMonths])].sort().slice(-monthsPeriod);
 
     const estimatedCostsByMonth = {};
     months.forEach((month) => {
