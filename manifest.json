@@ -34,7 +34,7 @@
     "display": "standalone",
     "dir": "auto",
     "lang": "ar",
-    "start_url": "./",
-    "scope": "./",
-    "id": "./"
+    "start_url": "/kw/",
+    "scope": "/kw/",
+    "id": "/kw/"
 }
